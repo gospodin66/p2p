@@ -2,7 +2,9 @@
 
 import threading
 import socket
+import json
 import kthr
+import random
 import select
 import queue
 import sys
@@ -20,8 +22,9 @@ class _Const:
 class Node:
 
     def __init__(self, ip: str, port: int) -> None:
-        self.thr_list = []
+        self.__list = []
         self._socket = {
+            "id": str(random.randint(1, 99999999)),
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": str(ip),
             "port": int(port),
@@ -41,6 +44,10 @@ class Node:
         return self._tcp_connections
 
 
+    def set___list(self, newlist):
+        self.__list = newlist
+        return
+
     def set_connections(self, connections: list):
         self._tcp_connections = connections
         return
@@ -58,23 +65,73 @@ class Node:
 
     def connect_to_node(self, ip, port) -> int:
         conn_socket = {
+            "id": str(random.randint(1, 99999999)),
+            # "id": self._socket["id"], # same node connects to others
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": str(ip),
             "port": int(port),
             "type": "OUT"
         }
         try:
+            for node in range(len(self._tcp_connections)):
+                if self._tcp_connections[node]['ip'] == conn_socket["ip"] and self._tcp_connections[node]['port'] == conn_socket["port"]:
+                    print(f"client {conn_socket['ip']}:{conn_socket['port']} is already connected.")
+                    return 1
+
             conn_socket["socket"].connect((conn_socket["ip"], conn_socket["port"]))
-            # update input keyboard to send to new socket
             self._tcp_connections.append(conn_socket)
-            # q.put_nowait(conn_socket)
+
+            # send list of peers to new connection
+            self.send_list(conn_socket["socket"])
+
             print(f"connected to node: {ip}:{port}")
-            print("input thread updated.")
         except socket.error as e:
-            print(f"error on socket-connect: {e.args[::-1]}")
+            print(f"error on socket-connect: {ip}:{port} :: {e.args[::-1]}")
             return 1
 
         return 0
+
+
+    def send_list(self, sock):
+        for i in range(len(self._tcp_connections)):
+            ftd = {}
+            for key, val in self._tcp_connections[i].items():
+                if key == 'socket':
+                    continue
+                ftd[key] = val
+            self.__list.append(ftd)
+
+        out = json.dumps(self.__list).encode() #data serialized
+
+        print("OUT: ", out)
+
+        sock.sendall(out)
+        print("list of peers sent to new connection.")    
+        self.__list.clear()
+
+
+    def broadcast_list(self):
+        for i in range(len(self._tcp_connections)):
+            ftd = {}
+            for key, val in self._tcp_connections[i].items():
+                if key == 'socket':
+                    continue
+                ftd[key] = val
+            self.__list.append(ftd)
+
+        out = json.dumps(self.__list).encode() #data serialized
+        self.__list.clear()
+
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["socket"] == self._socket["socket"] or self._tcp_connections[node]["type"] == "MASTER":
+                continue
+
+            self._tcp_connections[node]["socket"].sendall(out)
+
+            print(f"sent to {node} - {self._tcp_connections[node]['type']} - {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+
+
+
 
     # q => Queue instance
     # c => _Consts instance
@@ -86,6 +143,7 @@ class Node:
         while True:
             try:
                 self._INPUT, self._OUTPUT, self._EXCEPT = select.select(stream_in, [], [], select_timeout_sec)
+                self.__list.clear()
             except select.error as e:
                 if self._EXIT_ON_CMD:
                     return 1
@@ -101,8 +159,8 @@ class Node:
                 if s == self._socket["socket"]:
                     # new connection
                     try:
-                        conn, addr = self._socket["socket"].accept()
-                        conn.setblocking(False)
+                        sock, addr = self._socket["socket"].accept()
+                        sock.setblocking(False)
                     except socket.error as e:
                         if self._EXIT_ON_CMD:
                             return 1
@@ -114,27 +172,81 @@ class Node:
                         print(f"unexpected error on accept: {e.args[::-1]}")
                         return -1
                     self._tcp_connections.append({
-                        "socket": conn,
+                        "id": str(random.randint(1, 99999999)),
+                        "socket": sock,
                         "ip": str(addr[0]),
                         "port": int(addr[1]),
                         "type": "INC"
                     })
-                    stream_in.append(conn)
+                    stream_in.append(sock)
                     q.put_nowait(self._tcp_connections)
+
                     print(f"new connection: {addr[0]}:{addr[1]}")
                     continue
 
                 ip, port = s.getpeername()
+
+
+                inc_data = s.recv(c.BUFFER_SIZE)
+
+
+
+
+
+                cont2 = False
+
+
+                try:
+                    json_list = json.loads(inc_data) #data loaded
+                except Exception as e:
+                    print(f"unexpected error on json: {e.args[::-1]}")
+                    json_list = []
+
+
+
+
+
+
+                if json_list:
+                    for node in range(len(json_list)):
+                        # not connecting to self or already connected
+                        if json_list[node]['port'] == self._socket["port"]:
+                            continue
+
+                        for i in range(len(self.__list)):
+                            if json_list[node]['id'] in self.__list[i]['id']:
+                                print(f"FOUND NODE WITH ID: {self.__list[i]['id']} skipping")
+                                cont2 = True
+                                break
+
+                        if cont2:
+                            continue
+
+                        self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+
+                        self.__list.append(json_list[node])
+                        print(f"connected to node: {json_list[node]['ip']}:{json_list[node]['port']}")           
+
+                    getconns(self._tcp_connections)
+                    q.put_nowait(self._tcp_connections)
+                    continue
+
+
+
+
+
+
+
+                    
                 c_i = 0 # current_node_index
 
                 # get current socket in both input & tcp_connections list
                 for i in range(len(self._tcp_connections)):
-                    sock = self._tcp_connections[i]["socket"]
+                    sock = self._tcp_connections[i].get("socket")
                     if sock != self._socket["socket"] and sock == s:
                         c_i = i
                         break
 
-                inc_data = s.recv(c.BUFFER_SIZE)
 
                 if not inc_data:
                     print("empty packet!")
@@ -212,7 +324,7 @@ def r_file(fpath: str) -> bytes:
 # conns => connected clients list
 def getconns(conns: list) -> None:
     for node in range(len(conns)):
-        print(f"{node} - {conns[node]['type']} - {conns[node]['ip']}:{conns[node]['port']}")
+        print(f"{node} - {conns[node]['id']} - {conns[node]['type']} - {conns[node]['ip']}:{conns[node]['port']}")
     return
 
 
@@ -221,26 +333,26 @@ def getconns(conns: list) -> None:
 # args => additional args to fnc
 def input_callback(inp, args: tuple) -> int:
     #
-    # close server from input thread
-    # s => Node instance
-    def exit_from_cmd(server: Node) -> int:
-        server.close_master_socket()
-        server._EXIT_ON_CMD = True
+    # close node from input thread
+    # node => Node instance
+    def exit_from_cmd(node: Node) -> int:
+        node.close_master_socket()
+        node._EXIT_ON_CMD = True
         return 1
     #
     # s => Node instance
     # c => _Consts instance
     # q => Queue instance
-    s, c, q = (args[0], args[1], args[2])
+    node, c, q = (args[0], args[1], args[2])
 
-    if not isinstance(s, Node) or  not isinstance(c, _Const) or not isinstance(q, queue.Queue):
+    if not isinstance(node, Node) or  not isinstance(c, _Const) or not isinstance(q, queue.Queue):
         print("input-callbacK: invalid class instances.. exiting input thread..")
         return 1
     
     # update input-thread tcp connections list
     if not q.empty():
         new_list = q.get_nowait()
-        s.set_connections(new_list)
+        node.set_connections(new_list)
         q.task_done()
 
     if "sendfile:" in inp:
@@ -248,32 +360,33 @@ def input_callback(inp, args: tuple) -> int:
         out = r_file(inp.split(":")[1])
 
     elif inp == "getconns:":
-        getconns(s._tcp_connections)
+        getconns(node._tcp_connections)
         return 0
 
     # connnode:192.168.3.148:44555
+    # connnode:192.168.3.237:11222
     elif "connnode:" in inp :
         addr = inp[9:len(inp)].split(":")
-        s.connect_to_node(addr[0], addr[1])
+        node.connect_to_node(addr[0], addr[1])
         return 0
   
     elif inp == "exit:":
-        return exit_from_cmd(s)
+        return exit_from_cmd(node)
 
     else:
         # default
         out = inp.encode("utf-8")
 
 
-    for i in range(len(s._tcp_connections)):    
+    for i in range(len(node._tcp_connections)):    
         # not sending to self
-        if s._tcp_connections[i]["socket"] == s._socket["socket"]:
+        if node._tcp_connections[i]["socket"] == node._socket["socket"]:
             continue
         try:
-            s._tcp_connections[i]["socket"].send(out)
+            node._tcp_connections[i]["socket"].send(out)
         except socket.error as e:
             print(f"unexpected error on send: {e.args[::-1]}")
-            s.close_socket(s=s._socket["socket"], si=[], q=q)
+            node.close_socket(s=node._socket["socket"], si=[], q=q)
             break
         
     return 0
