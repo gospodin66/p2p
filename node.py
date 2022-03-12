@@ -34,6 +34,7 @@ class Node:
         self._socket["socket"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._tcp_connections = [ self._socket ]
         self._INPUT, self._OUTPUT, self._EXCEPT = [], [], []
+        self._EXIT_ON_CMD = False
 
 
     def get_socket(self):
@@ -103,8 +104,6 @@ class Node:
 
         out = json.dumps(self.__list).encode() #data serialized
 
-        print("OUT: ", out)
-
         sock.sendall(out)
         print("list of peers sent to new connection.")    
         self.__list.clear()
@@ -129,6 +128,32 @@ class Node:
             self._tcp_connections[node]["socket"].sendall(out)
 
             print(f"sent to {node} - {self._tcp_connections[node]['type']} - {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+
+
+
+
+
+    def is_socket_closed(self, s: socket.socket) -> bool:
+        try:
+            # read bytes without blocking and removing them from buffer (peek only)
+            data = s.recv(16, socket.MSG_DONTWAIT | socket.MSG_PEEK)
+            if len(data) == 0:
+                return True
+        except ConnectionResetError:
+            print("socket was closed for some other reason..")
+            return True
+        except BlockingIOError:
+            print("socket is open and reading from it would block..")
+            return False
+        except socket.error as e:
+            # 107 => "Transport endpoint is not connected" => socket normally closed
+            if e.errno == 107:
+                return True
+            print(f"socket-closed check unexpected error: {e.args[::-1]}")
+            return False
+        return False
+
+
 
 
 
@@ -184,14 +209,27 @@ class Node:
                     print(f"new connection: {addr[0]}:{addr[1]}")
                     continue
 
+
+                if self.is_socket_closed(s):
+                    print(f"socket closed! removing..")
+                    self.close_socket(s, stream_in, q)
+                    continue
+
+
+                try:
+                    inc_data = s.recv(c.BUFFER_SIZE)
+                except socket.error as e:
+                    print(f"an unexpected error during recv on socket: {e.args[::-1]}")
+                    self.close_socket(s, stream_in, q)
+                    continue
+
+
+                if not inc_data:
+                    print("empty packet!")
+                    self.close_socket(s, stream_in, q)
+
+                # if inc data is not empty => connection alive
                 ip, port = s.getpeername()
-
-
-                inc_data = s.recv(c.BUFFER_SIZE)
-
-
-
-
 
                 cont2 = False
 
@@ -201,11 +239,6 @@ class Node:
                 except Exception as e:
                     print(f"unexpected error on json: {e.args[::-1]}")
                     json_list = []
-
-
-
-
-
 
                 if json_list:
                     for node in range(len(json_list)):
@@ -248,9 +281,7 @@ class Node:
                         break
 
 
-                if not inc_data:
-                    print("empty packet!")
-                    self.close_socket(s, stream_in, q)
+       
 
                 try:
                     inc_data = inc_data.decode().strip()
@@ -274,8 +305,14 @@ class Node:
     # si => stream select inputs list
     # q  => Queue instance
     def close_socket(self, s: socket.socket, si: list, q: queue.Queue) -> None:
-        s.shutdown(socket.SHUT_RDWR)
+        try:
+            s.shutdown(socket.SHUT_RDWR)
+            # s.close()
+        except socket.error as e:
+            print(f"socket error on shutdown/close: {e.args[::-1]}")
+        
         s.close()
+
         # exiting by request - stream-input as empty array
         if si:
             si.remove(s)
@@ -385,7 +422,7 @@ def input_callback(inp, args: tuple) -> int:
         try:
             node._tcp_connections[i]["socket"].send(out)
         except socket.error as e:
-            print(f"unexpected error on send: {e.args[::-1]}")
+            print(f"unexpected error on send: {node._tcp_connections[i]["ip"]}:{node._tcp_connections[i]["port"]} :: {e.args[::-1]}")
             node.close_socket(s=node._socket["socket"], si=[], q=q)
             break
         
