@@ -37,15 +37,15 @@ class Node:
         self._EXIT_ON_CMD = False
 
 
-    def get_socket(self):
+    def get_socket(self) -> socket.socket:
         return self._socket
 
 
-    def get_connections(self):
+    def get_connections(self) -> list:
         return self._tcp_connections
 
 
-    def set___list(self, newlist):
+    def set___list(self, newlist: list) -> None:
         self.__list = newlist
         return
 
@@ -55,7 +55,6 @@ class Node:
         return
 
 
-    # c => _Consts instance
     def init_node_as_server(self, c: _Const) -> None:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
@@ -66,7 +65,7 @@ class Node:
         return
 
 
-    def connect_to_node(self, ip, port) -> int:
+    def connect_to_node(self, ip: str, port: int) -> int:
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         # current_node_index
         c_i = -1
@@ -105,7 +104,7 @@ class Node:
         return 0
 
 
-    def send_list(self, sock):
+    def send_list(self, sock: socket.socket) -> None:
 
         for i in range(len(self._tcp_connections)):
             ftd = {}
@@ -146,7 +145,7 @@ class Node:
         return False
 
 
-    def handle_inc_connection(self, stream_in, q) -> int:
+    def handle_inc_connection(self, stream_in, q: queue.Queue) -> int:
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
 
         try:
