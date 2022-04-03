@@ -66,7 +66,6 @@ class Node:
 
 
     def connect_to_node(self, ip: str, port: int) -> int:
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         # current_node_index
         c_i = -1
 
@@ -83,7 +82,7 @@ class Node:
             "port": int(port),
             "type": "OUT"
         }
-        
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         try:
             for node in range(len(self._tcp_connections)):
                 if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
@@ -144,8 +143,6 @@ class Node:
 
 
     def handle_inc_connection(self, stream_in, q: queue.Queue) -> int:
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
-
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -169,7 +166,7 @@ class Node:
         })
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
-
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         print(f"{t} :: new connection <<< {addr[0]}:{addr[1]}")
         return 0
 
@@ -194,6 +191,7 @@ class Node:
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
         q.put_nowait(self._tcp_connections)
         return
+
 
     # q => Queue instance
     # c => _Consts instance
@@ -273,44 +271,55 @@ class Node:
         return 0
 
 
+    # dc node by command
+    def dc_node(self, ip: str, port: int, q: queue.Queue) -> None:
+
+        # TODO: also remove INC node
+        
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                break
+        return
+
+
     # close socket | remove from lists | re-send new list to stream_in thread
     # s  => socket resource
     # ssi => stream select inputs list
     # q  => Queue instance
     def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue) -> None:
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
-
         try:
             s.shutdown(socket.SHUT_RDWR)
-            # s.close()
         except socket.error as e:
             pass
-            # print(f"socket error on shutdown/close: {e.args[::-1]}")
         
         s.close()
 
         # exiting by request - stream-input as empty array
         if ssi:
             ssi.remove(s)
-        for i in range(len(self._tcp_connections)):
-            if self._tcp_connections[i]["socket"] == s:
-                print(f"{t} :: node {self._tcp_connections[i]['type']} - {self._tcp_connections[i]['ip']}:{self._tcp_connections[i]['port']} disconnected!")
-                del self._tcp_connections[i]
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["socket"] == s:
+                t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+                _type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
+                print(f"{t} :: disconnected {_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+                del self._tcp_connections[node]
                 break
         q.put_nowait(self._tcp_connections)
-        print("new peer list sent to input thread.")
         return
 
 
     # close master socket & clear connections list
     def close_master_socket(self) -> None:
         connections = self._tcp_connections
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         for c in connections:
             if c["socket"] == self._socket["socket"]:
                 continue
             c["socket"].shutdown(socket.SHUT_RDWR)
             c["socket"].close()
-            print(f"{t} :: node {c['type']} - {c['ip']}:{c['port']} disconnected!")
+            _type = ">>>" if c['type'] == "OUT" else "<<<"
+            print(f"{t} :: disconnected {_type} {c['ip']}:{c['port']}")
         self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
@@ -374,11 +383,16 @@ def input_callback(inp, args: tuple) -> int:
         node.getconns()
         return 0
 
-    elif "connnode:" in inp :
+    elif "connnode:" in inp:
         addr = inp[9:len(inp)].split(":")
-        node.connect_to_node(addr[0], addr[1])
+        node.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
         return 0
-  
+
+    elif "dcnode:" in inp:
+        addr = inp[7:len(inp)].split(":")
+        node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q)
+        return 0
+
     elif inp == "exit:":
         return exit_from_cmd(node)
 
@@ -387,14 +401,14 @@ def input_callback(inp, args: tuple) -> int:
         out = inp.encode("utf-8")
 
 
-    for i in range(len(node._tcp_connections)):    
+    for i in range(len(node._tcp_connections)):
         # not sending to self
         if node._tcp_connections[i]["socket"] == node._socket["socket"]:
             continue
         try:
             node._tcp_connections[i]["socket"].send(out)
         except socket.error as e:
-            print(f"socket error on send: {node._tcp_connections[i]['ip']}:{node._tcp_connections[i]['port']} :: {e.args[::-1]}")
+            print(f"socket error on send: {e.args[::-1]}")
             node.close_socket(s=node._tcp_connections[i]["socket"], ssi=[], q=q)
             break
         except Exception as e:
