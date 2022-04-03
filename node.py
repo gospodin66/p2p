@@ -67,7 +67,7 @@ class Node:
 
 
     def connect_to_node(self, ip, port) -> int:
-
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         # current_node_index
         c_i = -1
 
@@ -88,7 +88,7 @@ class Node:
         try:
             for node in range(len(self._tcp_connections)):
                 if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
-                    print(f"client {conn_socket['ip']}:{conn_socket['port']} is already connected.")
+                    print(f"{t} :: node {conn_socket['ip']}:{conn_socket['port']} is already connected.")
                     return 1
 
             conn_socket["socket"].connect((conn_socket["ip"], conn_socket["port"]))
@@ -96,7 +96,7 @@ class Node:
             self._tcp_connections.append(conn_socket)
             # send list of peers to new connection
             self.send_list(conn_socket["socket"])
-            print(f"[conn_cmd] connected to node: {conn_socket['ip']}:{conn_socket['port']} -- list of peers sent to new connection.")
+            print(f"{t} :: connected to node: {conn_socket['ip']}:{conn_socket['port']}")
 
         except socket.error as e:
             print(f"error on socket-connect: {ip}:{port} :: {e.args[::-1]}")
@@ -147,6 +147,8 @@ class Node:
 
 
     def handle_inc_connection(self, stream_in, q) -> int:
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -171,7 +173,7 @@ class Node:
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
 
-        print(f"[listener] node connected: {addr[0]}:{addr[1]}")
+        print(f"{t} :: node connected: {addr[0]}:{addr[1]}")
         return 0
 
 
@@ -185,7 +187,6 @@ class Node:
         while True:
             try:
                 self._INPUT, self._OUTPUT, self._EXCEPT = select.select(stream_in, [], [], select_timeout_sec)
-                self.__list.clear()
             except select.error as e:
                 if self._EXIT_ON_CMD:
                     return 1
@@ -249,13 +250,11 @@ class Node:
                                 break
 
                         if continue2:
-                            print(f"[conn_list] node already connected: {json_list[node]['ip']}:{json_list[node]['port']}")
+                            # print(f"[conn_list] node already connected: {json_list[node]['ip']}:{json_list[node]['port']}")
                             continue
 
                         self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
-                        self.__list.append(json_list[node])
-
-                        print(f"[conn_list] connected to node: {json_list[node]['ip']}:{json_list[node]['port']}")
+                        # print(f"[conn_list] connected to node: {json_list[node]['ip']}:{json_list[node]['port']}")
 
                     q.put_nowait(self._tcp_connections)
                     continue
@@ -283,6 +282,8 @@ class Node:
     # ssi => stream select inputs list
     # q  => Queue instance
     def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue) -> None:
+        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+
         try:
             s.shutdown(socket.SHUT_RDWR)
             # s.close()
@@ -297,11 +298,11 @@ class Node:
             ssi.remove(s)
         for i in range(len(self._tcp_connections)):
             if self._tcp_connections[i]["socket"] == s:
-                print(f"node {self._tcp_connections[i]['type']} - {self._tcp_connections[i]['ip']}:{self._tcp_connections[i]['port']} disconnected!")
+                print(f"{t} :: node {self._tcp_connections[i]['type']} - {self._tcp_connections[i]['ip']}:{self._tcp_connections[i]['port']} disconnected!")
                 del self._tcp_connections[i]
                 break
         q.put_nowait(self._tcp_connections)
-        print("[close socket] sent new list to input thread..")
+        print("new peer list sent to input thread.")
         return
 
 
@@ -313,7 +314,7 @@ class Node:
                 continue
             c["socket"].shutdown(socket.SHUT_RDWR)
             c["socket"].close()
-            print(f"node {c['type']} - {c['ip']}:{c['port']} disconnected!")
+            print(f"{t} :: node {c['type']} - {c['ip']}:{c['port']} disconnected!")
         self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
