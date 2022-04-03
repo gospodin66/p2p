@@ -96,7 +96,7 @@ class Node:
             self._tcp_connections.append(conn_socket)
             # send list of peers to new connection
             self.send_list(conn_socket["socket"])
-            print(f"[conn] connected to node: {conn_socket['ip']}:{conn_socket['port']} -- list of peers sent to new connection.")
+            print(f"[conn_cmd] connected to node: {conn_socket['ip']}:{conn_socket['port']} -- list of peers sent to new connection.")
 
         except socket.error as e:
             print(f"error on socket-connect: {ip}:{port} :: {e.args[::-1]}")
@@ -117,11 +117,13 @@ class Node:
 
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
+        self.__list.insert(0, {"new_list": 1})
         out = json.dumps(self.__list).encode()
         self.__list.clear()
 
         sock.sendall(out)
         return
+
 
     def is_socket_closed(self, s: socket.socket) -> bool:
         try:
@@ -142,6 +144,35 @@ class Node:
             print(f"socket-closed check unexpected error: {e.args[::-1]}")
             return False
         return False
+
+
+    def handle_inc_connection(self, stream_in, q) -> int:
+        try:
+            sock, addr = self._socket["socket"].accept()
+            sock.setblocking(False)
+        except socket.error as e:
+            if self._EXIT_ON_CMD:
+                return 1
+            print(f"socket error on accept: {e.args[::-1]}")
+            return -1
+        except Exception as e:
+            if self._EXIT_ON_CMD:
+                return 1
+            print(f"unexpected error on accept: {e.args[::-1]}")
+            return -1                    
+        
+        self._tcp_connections.append({
+            "id": str(random.randint(10000000, 99999999)),
+            "socket": sock,
+            "ip": str(addr[0]),
+            "port": int(addr[1]),
+            "type": "INC"
+        })
+        stream_in.append(sock)
+        q.put_nowait(self._tcp_connections)
+
+        print(f"[listener] node connected: {addr[0]}:{addr[1]}")
+        return 0
 
 
     # q => Queue instance
@@ -167,50 +198,28 @@ class Node:
                 return -1
 
             for s in self._INPUT:
+                # new connection
                 if s == self._socket["socket"]:
-                    # new connection
-                    try:
-                        sock, addr = self._socket["socket"].accept()
-                        sock.setblocking(False)
-                    except socket.error as e:
-                        if self._EXIT_ON_CMD:
-                            return 1
-                        print(f"socket error on accept: {e.args[::-1]}")
-                        return -1
-                    except Exception as e:
-                        if self._EXIT_ON_CMD:
-                            return 1
-                        print(f"unexpected error on accept: {e.args[::-1]}")
-                        return -1                    
-                    
-                    self._tcp_connections.append({
-                        "id": str(random.randint(10000000, 99999999)),
-                        "socket": sock,
-                        "ip": str(addr[0]),
-                        "port": int(addr[1]),
-                        "type": "INC"
-                    })
-                    stream_in.append(sock)
-                    q.put_nowait(self._tcp_connections)
-
-                    print(f"[listener] node connected: {addr[0]}:{addr[1]}")
+                    inc_conn_res = self.handle_inc_connection(stream_in, q)
+                    if inc_conn_res != 0:
+                        return inc_conn_res
                     continue
 
                 if self.is_socket_closed(s):
                     print(f"socket closed! removing..")
-                    self.close_socket(s, stream_in, q)
+                    self.close_socket(s=s, ssi=stream_in, q=q)
                     continue
 
                 try:
                     inc_data = s.recv(c.BUFFER_SIZE)
                 except socket.error as e:
-                    print(f"socket error during recv on socket: {e.args[::-1]}")
-                    self.close_socket(s, stream_in, q)
+                    print(f"socket error on recv(): {e.args[::-1]}")
+                    self.close_socket(s=s, ssi=stream_in, q=q)
                     continue
 
                 if not inc_data:
                     print("empty packet!")
-                    self.close_socket(s, stream_in, q)
+                    self.close_socket(s=s, ssi=stream_in, q=q)
                     continue
 
                 # if inc data is not empty => connection alive
@@ -222,7 +231,9 @@ class Node:
                 except Exception as e:
                     json_list = []
 
-                if json_list and not isinstance(json_list, int):
+                # new_list as flag
+                if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
+                    json_list.pop(0)
                     # connect to nodes in list
                     for node in range(len(json_list)):
                         continue2 = False
@@ -238,13 +249,13 @@ class Node:
                                 break
 
                         if continue2:
-                            print(f"[list] node already connected: {json_list[node]['ip']}:{json_list[node]['port']}")
+                            print(f"[conn_list] node already connected: {json_list[node]['ip']}:{json_list[node]['port']}")
                             continue
 
                         self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
                         self.__list.append(json_list[node])
 
-                        print(f"[list] connected to node: {json_list[node]['ip']}:{json_list[node]['port']}")
+                        print(f"[conn_list] connected to node: {json_list[node]['ip']}:{json_list[node]['port']}")
 
                     q.put_nowait(self._tcp_connections)
                     continue
@@ -258,7 +269,7 @@ class Node:
                
                 if inc_data:
                     if inc_data == "exit:":
-                        self.close_socket(s, stream_in, q)
+                        self.close_socket(s=s, ssi=stream_in, q=q)
                         break
                 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
