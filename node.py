@@ -35,6 +35,7 @@ class Node:
         self._tcp_connections = [ self._socket ]
         self._INPUT, self._OUTPUT, self._EXCEPT = [], [], []
         self._EXIT_ON_CMD = False
+        print(f">>>\n>>> P2P Node {self._socket['ip']} {self._socket['port']}\n>>> exec \"getopts:\" for input options\n>>>\n")
 
 
     def get_socket(self) -> socket.socket:
@@ -55,16 +56,21 @@ class Node:
         return
 
 
+    #
+    #
+    #
     def init_node_as_server(self, c: _Const) -> None:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
-            print(f"server listening on {self._socket['ip']}:{self._socket['port']}")
         except socket.error as e:
             print(f"unexpected error on bind/listen: {e.args[::-1]}")
         return
 
 
+    #
+    # connect to peer
+    #
     def connect_to_node(self, ip: str, port: int) -> int:
         # current_node_index
         c_i = -1
@@ -82,7 +88,9 @@ class Node:
             "port": int(port),
             "type": "OUT"
         }
+
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+
         try:
             for node in range(len(self._tcp_connections)):
                 if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
@@ -101,8 +109,10 @@ class Node:
         return 0
 
 
+    #
+    # send peer list to target
+    #
     def send_list(self, target: socket.socket) -> None:
-
         for i in range(len(self._tcp_connections)):
             ftd = {}
             for key, val in self._tcp_connections[i].items():
@@ -116,11 +126,13 @@ class Node:
         self.__list.insert(0, {"new_list": 1})
         out = json.dumps(self.__list).encode()
         self.__list.clear()
-
         target.sendall(out)
         return
 
 
+    #
+    #
+    #
     def is_socket_closed(self, s: socket.socket) -> bool:
         try:
             # read bytes without blocking and removing them from buffer (peek only)
@@ -142,7 +154,10 @@ class Node:
         return False
 
 
-    def handle_inc_connection(self, stream_in, q: queue.Queue) -> int:
+    #
+    # accept incomming connection | append node to peer list | add socket to stream_input
+    #
+    def handle_inc_connection(self, stream_in: list, q: queue.Queue) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -171,14 +186,15 @@ class Node:
         return 0
 
 
+    #
+    # connect to all new peers in list
+    #
     def loop_connect_nodes(self, json_list: list, q: queue.Queue) -> None:
         for node in range(len(json_list)):
             already_connected = False
-
             # not connecting to self
             if json_list[node]["ip"] == self._socket["ip"] and json_list[node]["port"] == self._socket["port"]:
                 continue
-
             # not connecting to already connected
             for i in range(len(self._tcp_connections)):
                 if self._tcp_connections[i]["ip"] == json_list[node]["ip"] and self._tcp_connections[i]["port"] == json_list[node]["port"]:
@@ -189,12 +205,14 @@ class Node:
                 continue
 
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+
         q.put_nowait(self._tcp_connections)
         return
 
 
-    # q => Queue instance
-    # c => _Consts instance
+    #
+    # handle recv from stream_select
+    #
     def handle_connections(self, q: queue.Queue, c: _Const) -> int:
 
         stream_in = [ self._socket["socket"] ]
@@ -271,10 +289,12 @@ class Node:
         return 0
 
 
-    # dc node by command
+    #
+    # disconnect node by command
+    # TODO: also remove INC node
+    #
     def dc_node(self, ip: str, port: int, q: queue.Queue) -> None:
 
-        # TODO: also remove INC node
         
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
@@ -283,10 +303,10 @@ class Node:
         return
 
 
+    #
     # close socket | remove from lists | re-send new list to stream_in thread
-    # s  => socket resource
-    # ssi => stream select inputs list
-    # q  => Queue instance
+    # ssi => stream-select-inputs list
+    #
     def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue) -> None:
         try:
             s.shutdown(socket.SHUT_RDWR)
@@ -309,7 +329,9 @@ class Node:
         return
 
 
+    #
     # close master socket & clear connections list
+    #
     def close_master_socket(self) -> None:
         connections = self._tcp_connections
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
@@ -327,14 +349,60 @@ class Node:
         return
 
 
+    #
     # get connected clients
-    # conns => connected clients list
+    #
     def getconns(self) -> None:
         for node in range(len(self._tcp_connections)):
             print(f"{node} - {self._tcp_connections[node]['id']} - {self._tcp_connections[node]['type']} - {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
         return
 
 
+    #
+    # send msg to single node
+    #
+    def send_to_node(self, ip: str, port: int, msg: bytes) -> int:
+
+        target = {"node": self._tcp_connections[node] for node in range(len(self._tcp_connections)) if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port}
+
+        if not target:
+            print(f"target {ip}:{port} doesn't exist")
+            return 1
+
+        try:
+            target["node"]["socket"].send(msg)
+        except socket.error as e:
+            print(f"socket error on send: {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+            return 1
+        except Exception as e:
+            print(f"unexpected error on send: {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+            return 1
+
+        return 0
+
+
+    #
+    #
+    #
+    def broadcast_msg(self, msg: bytes, q: queue.Queue) -> int:
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
+                continue
+            try:
+                self._tcp_connections[node]["socket"].send(msg)
+            except socket.error as e:
+                print(f"socket error on send: {e.args[::-1]}")
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                return 1
+            except Exception as e:
+                print(f"unexpected error on send: {e.args[::-1]}")
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                return 1
+        return 0
+#
+#
 # read file
 def r_file(fpath: str) -> bytes:
     fcontents = b''
@@ -346,6 +414,11 @@ def r_file(fpath: str) -> bytes:
         print(f"an unexpected error occurred on reading file: {e.args[::-1]}")
         return b''
     return fcontents
+
+
+def display_options() -> None:
+    print("| commands |\n> getopts:\n> getconns:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
+    return
 
 
 # global callback for input-thread (broadcast/exec messages/commands)
@@ -375,22 +448,36 @@ def input_callback(inp, args: tuple) -> int:
         node.set_connections(new_list)
         q.task_done()
 
-    if "sendfile:" in inp:
+    if inp[:9] == "sendfile:":
         print("sending file..")
         out = r_file(inp.split(":")[1])
+        # TODO: send & recv file
+
+    elif inp == "getopts:":
+        display_options()
+        return 0
 
     elif inp == "getconns:":
         node.getconns()
         return 0
 
-    elif "connnode:" in inp:
+    elif inp[:9] == "connnode:":
         addr = inp[9:len(inp)].split(":")
+        # TODO: validate ip:port
         node.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
         return 0
 
-    elif "dcnode:" in inp:
+    elif inp[:7] == "dcnode:":
         addr = inp[7:len(inp)].split(":")
+        # TODO: validate ip:port
         node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q)
+        return 0
+
+    elif inp[:11] == "sendtonode:":
+        addr = inp[11:inp.index("|", 11, len(inp))].split(":")
+        msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
+        # TODO: validate ip:port
+        node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode("utf-8"))
         return 0
 
     elif inp == "exit:":
@@ -400,21 +487,8 @@ def input_callback(inp, args: tuple) -> int:
         # default
         out = inp.encode("utf-8")
 
+    node.broadcast_msg(msg=out, q=q)
 
-    for i in range(len(node._tcp_connections)):
-        # not sending to self
-        if node._tcp_connections[i]["socket"] == node._socket["socket"]:
-            continue
-        try:
-            node._tcp_connections[i]["socket"].send(out)
-        except socket.error as e:
-            print(f"socket error on send: {e.args[::-1]}")
-            node.close_socket(s=node._tcp_connections[i]["socket"], ssi=[], q=q)
-            break
-        except Exception as e:
-            print(f"unexpected error on send: {e.args[::-1]}")
-            node.close_socket(s=node._tcp_connections[i]["socket"], ssi=[], q=q)
-            break
     return 0
 
 
