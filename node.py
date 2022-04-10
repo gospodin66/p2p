@@ -216,7 +216,6 @@ class Node:
             if already_connected:
                 continue
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
-            time.sleep(0.30) # 0.3 seconds
         q.put_nowait(self._tcp_connections)
 
 
