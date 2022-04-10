@@ -59,13 +59,17 @@ class Node:
     #
     #
     #
-    def init_node_as_server(self, c: _Const) -> None:
+    def init_node_as_server(self, c: _Const) -> int:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
         except socket.error as e:
-            print(f"unexpected error on bind/listen: {e.args[::-1]}")
-        return
+            print(f"socket error on socket.bind()/socket.listen(): {e.args[::-1]}")
+            return 1
+        except Exception as e:
+            print(f"unexpected error on socket.bind()/socket.listen(): {e.args[::-1]}")
+            return 1
+        return 0
 
 
     #
@@ -103,7 +107,10 @@ class Node:
             print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
 
         except socket.error as e:
-            print(f"error on socket-connect: {ip}:{port} :: {e.args[::-1]}")
+            print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
+            return 1
+        except Exception as e:
+            print(f"unexpected error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
 
         return 0
@@ -123,11 +130,11 @@ class Node:
 
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
+        # set new_list flag
         self.__list.insert(0, {"new_list": 1})
         out = json.dumps(self.__list).encode()
         self.__list.clear()
         target.sendall(out)
-        return
 
 
     #
@@ -155,7 +162,7 @@ class Node:
 
 
     #
-    # accept incomming connection | append node to peer list | add socket to stream_input
+    # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
     def handle_inc_connection(self, stream_in: list, q: queue.Queue) -> int:
         try:
@@ -164,14 +171,18 @@ class Node:
         except socket.error as e:
             if self._EXIT_ON_CMD:
                 return 1
-            print(f"socket error on accept: {e.args[::-1]}")
+            print(f"socket error on socket.accept(): {e.args[::-1]}")
             return -1
         except Exception as e:
             if self._EXIT_ON_CMD:
                 return 1
-            print(f"unexpected error on accept: {e.args[::-1]}")
-            return -1                    
+            print(f"unexpected error on socket.accept(): {e.args[::-1]}")
+            return -1
         
+        # TODO: create node socket pair: send MASTER id as OUT => recv OUT here and assign to INC
+        #       temp id: random.randint(10000000, 99999999)
+        #       sending id immediately when connected causes input() exception
+
         self._tcp_connections.append({
             "id": str(random.randint(10000000, 99999999)),
             "socket": sock,
@@ -179,15 +190,17 @@ class Node:
             "port": int(addr[1]),
             "type": "INC"
         })
+
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
+
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
         print(f"{t} :: new connection <<< {addr[0]}:{addr[1]}")
         return 0
 
 
     #
-    # connect to all new peers in list
+    # connect to all new peers in list | send new peer list to input thread
     #
     def loop_connect_nodes(self, json_list: list, q: queue.Queue) -> None:
         for node in range(len(json_list)):
@@ -200,14 +213,11 @@ class Node:
                 if self._tcp_connections[i]["ip"] == json_list[node]["ip"] and self._tcp_connections[i]["port"] == json_list[node]["port"]:
                     already_connected = True
                     break
-
             if already_connected:
                 continue
-
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
-
+            time.sleep(0.30) # 0.3 seconds
         q.put_nowait(self._tcp_connections)
-        return
 
 
     #
@@ -224,12 +234,12 @@ class Node:
             except select.error as e:
                 if self._EXIT_ON_CMD:
                     return 1
-                print(f"socket-select error: {e.args[::-1]}")
+                print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1
-                print(f"unexpected error on socket-select: {e.args[::-1]}")
+                print(f"unexpected error on select.socket-select(): {e.args[::-1]}")
                 return -1
 
             for s in self._INPUT:
@@ -276,7 +286,7 @@ class Node:
                 try:
                     inc_data = inc_data.decode().strip()
                 except Exception:
-                    print("inc-data are bytes..")
+                    print("inc data are bytes..")
                
                 if inc_data:
                     if inc_data == "exit:":
@@ -294,13 +304,10 @@ class Node:
     # TODO: also remove INC node
     #
     def dc_node(self, ip: str, port: int, q: queue.Queue) -> None:
-
-        
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
                 self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
                 break
-        return
 
 
     #
@@ -321,12 +328,11 @@ class Node:
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == s:
                 t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
-                _type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                print(f"{t} :: disconnected {_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+                socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
+                print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
                 del self._tcp_connections[node]
                 break
         q.put_nowait(self._tcp_connections)
-        return
 
 
     #
@@ -340,13 +346,12 @@ class Node:
                 continue
             c["socket"].shutdown(socket.SHUT_RDWR)
             c["socket"].close()
-            _type = ">>>" if c['type'] == "OUT" else "<<<"
-            print(f"{t} :: disconnected {_type} {c['ip']}:{c['port']}")
+            socket_direction_type = ">>>" if c['type'] == "OUT" else "<<<"
+            print(f"{t} :: disconnected {socket_direction_type} {c['ip']}:{c['port']}")
         self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
         print("disconnected all clients..\nmaster socket closed!")
-        return
 
 
     #
@@ -355,7 +360,6 @@ class Node:
     def getconns(self) -> None:
         for node in range(len(self._tcp_connections)):
             print(f"{node} - {self._tcp_connections[node]['id']} - {self._tcp_connections[node]['type']} - {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
-        return
 
 
     #
@@ -372,11 +376,11 @@ class Node:
         try:
             target["node"]["socket"].send(msg)
         except socket.error as e:
-            print(f"socket error on send: {e.args[::-1]}")
+            print(f"socket error on socket.send(): {e.args[::-1]}")
             self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
             return 1
         except Exception as e:
-            print(f"unexpected error on send: {e.args[::-1]}")
+            print(f"unexpected error on socket.send(): {e.args[::-1]}")
             self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
             return 1
 
@@ -393,11 +397,11 @@ class Node:
             try:
                 self._tcp_connections[node]["socket"].send(msg)
             except socket.error as e:
-                print(f"socket error on send: {e.args[::-1]}")
+                print(f"socket error on socket.send(): {e.args[::-1]}")
                 self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
                 return 1
             except Exception as e:
-                print(f"unexpected error on send: {e.args[::-1]}")
+                print(f"unexpected error on soocket.send(): {e.args[::-1]}")
                 self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
                 return 1
         return 0
@@ -411,14 +415,13 @@ def r_file(fpath: str) -> bytes:
         with open(fpath, "rb") as f:
             fcontents += f.read()
     except Exception as e:
-        print(f"an unexpected error occurred on reading file: {e.args[::-1]}")
+        print(f"unexpected error on file.read(): {e.args[::-1]}")
         return b''
     return fcontents
 
 
 def display_options() -> None:
     print("| commands |\n> getopts:\n> getconns:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
-    return
 
 
 # global callback for input-thread (broadcast/exec messages/commands)
@@ -505,9 +508,10 @@ def main():
     except socket.error as e: 
         print(f"invalid ip address: {e.args[::-1]}")
         exit(1)
+
     # validate port
     if 0 < port > 65535:
-        print("port number not in range")
+        print("port number not in range.")
         exit(1)
 
     s = Node(ip, port)
@@ -517,9 +521,13 @@ def main():
     # init non-blocking input thr
     kthr.KThr(input_callback=input_callback, args=(s, c, q))
 
-    # init tcp server
-    s.init_node_as_server(c)
+    # init node as tcp server
+    if s.init_node_as_server(c) != 0:
+        print("[!] failed to initialize node as server")
+        exit(1)
+
     ret = s.handle_connections(q, c)
+
     if ret == 0:
         print(f"exited normally with [{ret}]")
         s.close_master_socket()
