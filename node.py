@@ -3,13 +3,13 @@
 import threading
 import socket
 import json
-import kthr
 import random
 import select
 import queue
 import sys
 import errno
 import time
+import os
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -107,6 +107,9 @@ class Node:
             print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
 
         except socket.error as e:
+            
+            # TODO: Connection refused: check if firewall?
+
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
         except Exception as e:
@@ -164,7 +167,7 @@ class Node:
     #
     # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
-    def handle_inc_connection(self, stream_in: list, q: queue.Queue) -> int:
+    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c = _Const) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -194,7 +197,7 @@ class Node:
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
 
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+        t = time.strftime(c.TIME_FORMAT, time.localtime())
         print(f"{t} :: new connection <<< {addr[0]}:{addr[1]}")
         return 0
 
@@ -244,26 +247,26 @@ class Node:
             for s in self._INPUT:
                 # new connection
                 if s == self._socket["socket"]:
-                    inc_conn_res = self.handle_inc_connection(stream_in, q)
+                    inc_conn_res = self.handle_inc_connection(stream_in, q=q, c=c)
                     if inc_conn_res != 0:
                         return inc_conn_res
                     continue
 
                 if self.is_socket_closed(s):
                     print(f"socket closed! removing..")
-                    self.close_socket(s=s, ssi=stream_in, q=q)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 try:
                     inc_data = s.recv(c.BUFFER_SIZE)
                 except socket.error as e:
                     print(f"socket error on recv(): {e.args[::-1]}")
-                    self.close_socket(s=s, ssi=stream_in, q=q)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 if not inc_data:
                     print("empty packet!")
-                    self.close_socket(s=s, ssi=stream_in, q=q)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 # if inc data is not empty => connection alive
@@ -289,7 +292,7 @@ class Node:
                
                 if inc_data:
                     if inc_data == "exit:":
-                        self.close_socket(s=s, ssi=stream_in, q=q)
+                        self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         break
                 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
@@ -302,10 +305,10 @@ class Node:
     # disconnect node by command
     # TODO: also remove INC node
     #
-    def dc_node(self, ip: str, port: int, q: queue.Queue) -> None:
+    def dc_node(self, ip: str, port: int, q: queue.Queue, c: _Const) -> None:
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
-                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
                 break
 
 
@@ -313,7 +316,7 @@ class Node:
     # close socket | remove from lists | re-send new list to stream_in thread
     # ssi => stream-select-inputs list
     #
-    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue) -> None:
+    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue, c: _Const) -> None:
         try:
             s.shutdown(socket.SHUT_RDWR)
         except socket.error as e:
@@ -326,7 +329,7 @@ class Node:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == s:
-                t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+                t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
                 print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
                 del self._tcp_connections[node]
@@ -364,7 +367,7 @@ class Node:
     #
     # send msg to single node
     #
-    def send_to_node(self, ip: str, port: int, msg: bytes) -> int:
+    def send_to_node(self, ip: str, port: int, msg: bytes, c: _Const) -> int:
 
         target = {"node": self._tcp_connections[node] for node in range(len(self._tcp_connections)) if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port}
 
@@ -376,11 +379,11 @@ class Node:
             target["node"]["socket"].send(msg)
         except socket.error as e:
             print(f"socket error on socket.send(): {e.args[::-1]}")
-            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
             return 1
         except Exception as e:
             print(f"unexpected error on socket.send(): {e.args[::-1]}")
-            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
             return 1
 
         return 0
@@ -389,7 +392,7 @@ class Node:
     #
     #
     #
-    def broadcast_msg(self, msg: bytes, q: queue.Queue) -> int:
+    def broadcast_msg(self, msg: bytes, q: queue.Queue, c: _Const) -> int:
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
                 continue
@@ -397,13 +400,44 @@ class Node:
                 self._tcp_connections[node]["socket"].send(msg)
             except socket.error as e:
                 print(f"socket error on socket.send(): {e.args[::-1]}")
-                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
                 return 1
             except Exception as e:
                 print(f"unexpected error on soocket.send(): {e.args[::-1]}")
-                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q)
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
                 return 1
         return 0
+
+
+
+
+class InputThread(threading.Thread):
+    # input_callback  => function to exec in thread loop
+    # args (any type) => additional arguments to function
+    # name (string)   => thread name
+    def __init__(self,input_callback = None,args = None,name='input-thread'):
+        self.input_callback = input_callback
+        self.args = args
+        super(InputThread, self).__init__(name=name)
+        self.start()
+
+    def run(self):
+        while True:
+            # waits to get input() => returns 1/0 (exit/continue)
+            try:
+                if self.input_callback(input(), self.args) == 1:
+                    break
+            except ValueError as e:
+                print(f"error! attempt to send on broken connection: {e.args[::-1]}")
+                break
+            except Exception as e:
+                print(f"unexpected error on input(): {e.args[::-1]}")
+                break
+        print("input-thread exited")
+        return
+      
+
+
 #
 #
 # read file
@@ -418,7 +452,9 @@ def r_file(fpath: str) -> bytes:
         return b''
     return fcontents
 
-
+#
+#
+#
 def display_options() -> None:
     print("| commands |\n> getopts:\n> getconns:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
 
@@ -479,7 +515,7 @@ def input_callback(inp, args: tuple) -> int:
         addr = inp[11:inp.index("|", 11, len(inp))].split(":")
         msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
         # TODO: validate ip:port
-        node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode("utf-8"))
+        node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode("utf-8"), c=c)
         return 0
 
     elif inp == "exit:":
@@ -489,17 +525,26 @@ def input_callback(inp, args: tuple) -> int:
         # default
         out = inp.encode("utf-8")
 
-    node.broadcast_msg(msg=out, q=q)
+    node.broadcast_msg(msg=out, q=q, c=c)
 
     return 0
 
-
+#
+#
+#
 def main():
     if len(sys.argv) != 3:
-        print("enter ip:port")
-        exit(1)
-
-    ip, port = (str(sys.argv[1]), int(sys.argv[2]))
+        if len(sys.argv) == 1:
+            ip, port = (str(socket.gethostbyname(socket.gethostname())), random.randint(45500, 48000))
+            print(f"ip:port not provided >>> using default host ip with random port >>> {ip}:{port}")
+        else:
+            print("invalid arguments for ip:port")
+            exit(1)
+    else:
+        if not isinstance(sys.argv[1], str) or not isinstance(sys.argv[2], str) or not sys.argv[2].isnumeric():
+            print(f"invalid arguments type for ip::port >>> {sys.argv[1]}::{sys.argv[2]}")
+            exit(1)
+        ip, port = (str(sys.argv[1]), int(sys.argv[2]))
 
     # validate ip
     try:
@@ -518,7 +563,7 @@ def main():
     c = _Const()
 
     # init non-blocking input thr
-    kthr.KThr(input_callback=input_callback, args=(s, c, q))
+    InputThread(input_callback=input_callback, args=(s, c, q))
 
     # init node as tcp server
     if s.init_node_as_server(c) != 0:
