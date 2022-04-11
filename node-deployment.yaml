@@ -21,8 +21,8 @@ spec:
         app: p2pnode
     spec:
       containers:
-      - name: p2pnode
-        image: 192.168.49.1:5000/p2p:1.0
+      - name: p2pnode-alpine
+        image: 192.168.49.1:5000/p2p-alpine:1.0
         ports:
         - containerPort: 45666
         imagePullPolicy: IfNotPresent
@@ -42,7 +42,7 @@ metadata:
 spec:
   ports:
   - protocol: TCP
-    port: 80
+    port: 45666
     targetPort: 45666
     nodePort: 30666
   selector:
