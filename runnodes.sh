@@ -7,7 +7,6 @@ for node in "${fields[@]}" ;do
     printf '%s\n' "--- HEX representation of str:"
     printf '%s\n' "$node" | xxd
     printf '%s\n' "--- attaching to node: ${node}"
-    kubectl exec -it "$node" -- echo "getconns:"
     kubectl attach -it -c p2pnode-alpine "$node"
 done
 echo "done!"
