@@ -23,6 +23,8 @@ spec:
       containers:
       - name: p2pnode-alpine
         image: 192.168.49.1:5000/p2p-alpine:1.0
+        tty: true
+        stdin: true
         ports:
         - containerPort: 45666
         imagePullPolicy: IfNotPresent

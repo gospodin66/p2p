@@ -2,6 +2,7 @@
 
 import threading
 import socket
+import inputthread
 import json
 import random
 import select
@@ -411,30 +412,30 @@ class Node:
 
 
 
-class InputThread(threading.Thread):
-    # input_callback  => function to exec in thread loop
-    # args (any type) => additional arguments to function
-    # name (string)   => thread name
-    def __init__(self,input_callback = None,args = None,name='input-thread'):
-        self.input_callback = input_callback
-        self.args = args
-        super(InputThread, self).__init__(name=name)
-        self.start()
+# class InputThread(threading.Thread):
+#     # input_callback  => function to exec in thread loop
+#     # args (any type) => additional arguments to function
+#     # name (string)   => thread name
+#     def __init__(self,input_callback = None,args = None,name='input-thread'):
+#         self.input_callback = input_callback
+#         self.args = args
+#         super(InputThread, self).__init__(name=name)
+#         self.start()
 
-    def run(self):
-        while True:
-            # waits to get input() => returns 1/0 (exit/continue)
-            try:
-                if self.input_callback(input(), self.args) == 1:
-                    break
-            except ValueError as e:
-                print(f"error! attempt to send on broken connection: {e.args[::-1]}")
-                break
-            except Exception as e:
-                print(f"unexpected error on input(): {e.args[::-1]}")
-                break
-        print("input-thread exited")
-        return
+#     def run(self):
+#         while True:
+#             # waits to get input() => returns 1/0 (exit/continue)
+#             try:
+#                 if self.input_callback(input(), self.args) == 1:
+#                     break
+#             except ValueError as e:
+#                 print(f"error! attempt to send on broken connection: {e.args[::-1]}")
+#                 break
+#             except Exception as e:
+#                 print(f"unexpected error on input(): {e.args[::-1]}")
+#                 break
+#         print("input-thread exited")
+#         return
       
 
 
@@ -535,7 +536,11 @@ def input_callback(inp, args: tuple) -> int:
 def main():
     if len(sys.argv) != 3:
         if len(sys.argv) == 1:
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), random.randint(45500, 48000))
+
+            # temp
+            default_port = 45666
+
+            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
             print(f"ip:port not provided >>> using default host ip with random port >>> {ip}:{port}")
         else:
             print("invalid arguments for ip:port")
@@ -563,7 +568,7 @@ def main():
     c = _Const()
 
     # init non-blocking input thr
-    InputThread(input_callback=input_callback, args=(s, c, q))
+    inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
 
     # init node as tcp server
     if s.init_node_as_server(c) != 0:
