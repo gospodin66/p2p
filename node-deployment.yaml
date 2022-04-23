@@ -11,7 +11,7 @@ metadata:
   labels:
     app: p2pnode
 spec:
-  replicas: 5
+  replicas: 10
   selector:
     matchLabels:
       app: p2pnode
@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: p2pnode-alpine
-        image: 192.168.49.1:5000/p2p-alpine:1.0
+        image: 192.168.49.1:5000/p2p:1.0
         tty: true
         stdin: true
         ports:
@@ -35,18 +35,3 @@ spec:
           requests:
             cpu: 20m
             memory: 100Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: p2p
-  name: p2pnode
-spec:
-  ports:
-  - protocol: TCP
-    port: 45666
-    targetPort: 45666
-    nodePort: 30666
-  selector:
-    app: p2pnode
-  type: NodePort
