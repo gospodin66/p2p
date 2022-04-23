@@ -17,10 +17,10 @@ class InputThread(threading.Thread):
                 if self.input_callback(input(), self.args) == 1:
                     break
             except ValueError as e:
-                print(f"error! attempt to send on broken connection: {e.args[::-1]}")
+                print(f"input-thread error: attempt to send on broken connection: {e.args[::-1]}")
                 break
             except Exception as e:
-                print(f"unexpected error on input(): {e.args[::-1]}")
+                print(f"input-thread error: unexpected error on input(): {e.args[::-1]}")
                 break
         print("input-thread exited")
         return

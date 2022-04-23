@@ -411,34 +411,6 @@ class Node:
 
 
 
-
-# class InputThread(threading.Thread):
-#     # input_callback  => function to exec in thread loop
-#     # args (any type) => additional arguments to function
-#     # name (string)   => thread name
-#     def __init__(self,input_callback = None,args = None,name='input-thread'):
-#         self.input_callback = input_callback
-#         self.args = args
-#         super(InputThread, self).__init__(name=name)
-#         self.start()
-
-#     def run(self):
-#         while True:
-#             # waits to get input() => returns 1/0 (exit/continue)
-#             try:
-#                 if self.input_callback(input(), self.args) == 1:
-#                     break
-#             except ValueError as e:
-#                 print(f"error! attempt to send on broken connection: {e.args[::-1]}")
-#                 break
-#             except Exception as e:
-#                 print(f"unexpected error on input(): {e.args[::-1]}")
-#                 break
-#         print("input-thread exited")
-#         return
-      
-
-
 #
 #
 # read file
@@ -534,22 +506,28 @@ def input_callback(inp, args: tuple) -> int:
 #
 #
 def main():
-    if len(sys.argv) != 3:
-        if len(sys.argv) == 1:
-
-            # temp
-            default_port = 45666
-
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
-            print(f"ip:port not provided >>> using default host ip with random port >>> {ip}:{port}")
-        else:
-            print("invalid arguments for ip:port")
-            exit(1)
-    else:
+    _argc = len(sys.argv)
+    # ip:port provided
+    if _argc == 3:
         if not isinstance(sys.argv[1], str) or not isinstance(sys.argv[2], str) or not sys.argv[2].isnumeric():
             print(f"invalid arguments type for ip::port >>> {sys.argv[1]}::{sys.argv[2]}")
             exit(1)
+
         ip, port = (str(sys.argv[1]), int(sys.argv[2]))
+    # no args
+    else:
+        default_port = 45666
+        # assign default host ip & port
+        if _argc == 1:
+            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
+            print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
+        elif _argc == 2:
+            ip, port = (str(sys.argv[1]), default_port)
+            print(f"port not provided >>> using default port >>> {ip}:{port}")
+        else:
+            print("invalid arguments")
+            exit(1)
+
 
     # validate ip
     try:
