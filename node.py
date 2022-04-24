@@ -330,29 +330,12 @@ class Node:
                 continue
 
             cmd_args = cmd.strip().split(" ")
-            # _cmd = cmd_args[0]
-            # if not len(cmd_args) < 2:
-            #     _args = ""
-            # elif len(cmd_args) > 2:
-            #     _args = " ".join(cmd_args[1:])
-            # else:
-            #     _args = str(cmd_args[1])
-
-            print(f"DEBUG: CMD-ARGS: {cmd_args}")
-
             # r = subprocess.run([_cmd, _args], capture_output=True, text=True).stdout
             r = subprocess.check_call(cmd_args)
             returns.append(r)
 
         try:
-            ret = '---'.join(returns)
-
-            print(f"DEBUG-ret-returns:: {ret}|{returns}")
-            
-            if isinstance(ret, int) or ret.isnumeric():
-                print("ret instance is a number!")
-                return 1
-
+            ret = '---'.join([str(r) for r in returns])
             target["node"]["socket"].send(ret.encode("utf-8"))
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
