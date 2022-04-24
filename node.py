@@ -425,11 +425,29 @@ def r_file(fpath: str) -> bytes:
         return b''
     return fcontents
 
+
 #
 #
 #
 def display_options() -> None:
     print("| commands |\n> getopts:\n> getconns:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
+
+
+#
+#
+#
+def validate_ip_port(ip: str, port: int) -> int:
+    # validate ip
+    try:
+        socket.inet_aton(ip)
+    except socket.error as e: 
+        print(f"invalid ip address: {e.args[::-1]}")
+        return 1
+    # validate port
+    if 0 < port > 65535:
+        print("port number not in range.")
+        return 1
+    return 0
 
 
 # global callback for input-thread (broadcast/exec messages/commands)
@@ -506,19 +524,6 @@ def input_callback(inp, args: tuple) -> int:
     return 0
 
 
-def validate_ip_port(ip: str, port: int) -> int:
-    # validate ip
-    try:
-        socket.inet_aton(ip)
-    except socket.error as e: 
-        print(f"invalid ip address: {e.args[::-1]}")
-        return 1
-    # validate port
-    if 0 < port > 65535:
-        print("port number not in range.")
-        return 1
-    return 0
-
 #
 #
 #
@@ -536,11 +541,12 @@ def main():
     # no args
     else:
         default_port = 45666
-        # assign default host ip & port
         if _argc == 1:
+            # assign default host ip & port
             ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
             print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
         elif _argc == 2:
+            # assign default port
             ip, port = (str(sys.argv[1]), default_port)
             print(f"port not provided >>> using default port >>> {ip}:{port}")
         else:

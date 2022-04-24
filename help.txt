@@ -11,8 +11,6 @@
 --- kubectl ---
 # set namespace
     kubectl config set-context --current --namespace=p2p
-# delete by name
-    kubectl delete pods $(kubectl get pods --all-namespaces|grep p2pnode|awk '{print $2}')
 # deploy
     kubectl apply -f /home/cheki/projects/python/p2p/node-deployment.yaml
 # run dummy img
@@ -22,12 +20,13 @@
     --port=45666 \
     --stdin=true \
     --tty=true
-
 # list running containers
     kubectl get pods -o=name --field-selector=status.phase=Running
+# delete by name
+    kubectl delete pods $(kubectl get pods --all-namespaces|grep p2pnode|awk '{print $2}')
 #
     kubectl delete --all pods --namespace=p2p
-    kubectl delete --all deployments --namespace=p2p
+    kubectl delete --all deploy --namespace=p2p
 
 
 --- docker ---
