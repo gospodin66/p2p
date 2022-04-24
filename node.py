@@ -298,7 +298,7 @@ class Node:
                         break
                     elif inc_data[:7] == "inccmd:":
                         cmd = inc_data[7:]
-                        print(f">>> incomming command sequence [{cmd}]..")
+                        print(f">>> incomming command sequence [{cmd}]")
                         # port is not needed as target is searched based upon same IP and "OUT" socket type => node socket pair
                         self.exec_cmd(cmd=cmd, ip=ip, q=q, c=c)
                         continue
@@ -330,26 +330,9 @@ class Node:
             if not cmd:
                 continue
 
-            cmd_args = cmd.strip().split(" ")
-            _cmd = cmd_args[0]
-
-            if not cmd_args:
-                _args = ""
-            elif not len(cmd_args) < 2:
-                _args = ""
-            elif len(cmd_args) > 2:
-                _args = " ".join(cmd_args[1:])
-            elif len(cmd_args) == 2:
-                _args = str(cmd_args[1])
-            else:
-                _args = ""
-
-            print(f"executing command [{cmd_args}]..")
-
-            # r = subprocess.run([_cmd, _args], capture_output=True, text=True).stdout
-            # r = subprocess.check_call(cmd_args)
-            # r = subprocess.Popen([cmd.strip()], shell = True)
-            r = subprocess.check_output(cmd_args)
+            full_cmd = cmd.strip().split(" ")
+            print(f"executing command [{full_cmd}]")
+            r = subprocess.check_output(full_cmd)
             returns.append(r)
 
         try:
@@ -364,7 +347,7 @@ class Node:
             self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
             return 1
         
-        print(f">>> command sequence executed and output back to node: {target['node']['ip']}:{target['node']['port']}")
+        print(f">>> command sequence executed and output sent back to node: {target['node']['ip']}:{target['node']['port']}")
         return 0
 
 
