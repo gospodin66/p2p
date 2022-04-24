@@ -348,7 +348,10 @@ class Node:
             ret = '---'.join(returns)
 
             print(f"DEBUG-ret-returns:: {ret}|{returns}")
-
+            
+            if isinstance(ret, int) or ret.isnumeric():
+                print("ret instance is a number!")
+                return 1
 
             target["node"]["socket"].send(ret.encode("utf-8"))
         except socket.error as e:
