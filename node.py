@@ -462,7 +462,7 @@ def input_callback(inp, args: tuple) -> int:
     if inp[:9] == "sendfile:":
         print("sending file..")
         out = r_file(inp.split(":")[1])
-        # TODO: send & recv file
+        # TODO: send & recv file as function
 
     elif inp == "getopts:":
         display_options()
@@ -474,20 +474,23 @@ def input_callback(inp, args: tuple) -> int:
 
     elif inp[:9] == "connnode:":
         addr = inp[9:len(inp)].split(":")
-        # TODO: validate ip:port
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
         node.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
         return 0
 
     elif inp[:7] == "dcnode:":
         addr = inp[7:len(inp)].split(":")
-        # TODO: validate ip:port
-        node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q)
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
         return 0
 
     elif inp[:11] == "sendtonode:":
         addr = inp[11:inp.index("|", 11, len(inp))].split(":")
         msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
-        # TODO: validate ip:port
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
         node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode("utf-8"), c=c)
         return 0
 
@@ -502,6 +505,20 @@ def input_callback(inp, args: tuple) -> int:
 
     return 0
 
+
+def validate_ip_port(ip: str, port: int) -> int:
+    # validate ip
+    try:
+        socket.inet_aton(ip)
+    except socket.error as e: 
+        print(f"invalid ip address: {e.args[::-1]}")
+        return 1
+    # validate port
+    if 0 < port > 65535:
+        print("port number not in range.")
+        return 1
+    return 0
+
 #
 #
 #
@@ -509,7 +526,9 @@ def main():
     _argc = len(sys.argv)
     # ip:port provided
     if _argc == 3:
-        if not isinstance(sys.argv[1], str) or not isinstance(sys.argv[2], str) or not sys.argv[2].isnumeric():
+        if not isinstance(sys.argv[1], str) \
+        or not isinstance(sys.argv[2], str) \
+        or not sys.argv[2].isnumeric():
             print(f"invalid arguments type for ip::port >>> {sys.argv[1]}::{sys.argv[2]}")
             exit(1)
 
@@ -528,19 +547,9 @@ def main():
             print("invalid arguments")
             exit(1)
 
-
-    # validate ip
-    try:
-        socket.inet_aton(ip)
-    except socket.error as e: 
-        print(f"invalid ip address: {e.args[::-1]}")
+    if validate_ip_port(ip, port) != 0:
         exit(1)
-
-    # validate port
-    if 0 < port > 65535:
-        print("port number not in range.")
-        exit(1)
-
+    
     s = Node(ip, port)
     q = queue.Queue(20)
     c = _Const()
