@@ -35,3 +35,25 @@ spec:
           requests:
             cpu: 20m
             memory: 100Mi
+        volumeMounts:
+        - name: p2p-data
+          mountPath: /p2p-data/
+      volumes:
+        - name: p2p-data
+          persistentVolumeClaim:
+            claimName: p2pnode-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: p2p
+  name: p2pnode-pvc
+  labels:
+    app: p2pnode
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi
