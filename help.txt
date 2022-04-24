@@ -27,6 +27,9 @@
 #
     kubectl delete --all pods --namespace=p2p
     kubectl delete --all deploy --namespace=p2p
+# patch terminating pv
+    kubectl patch pv pvc-dd92dc08-88de-4fad-a6a6-18f712f822ae -p '{"metadata":{"finalizers":null}}'
+
 
 
 --- docker ---

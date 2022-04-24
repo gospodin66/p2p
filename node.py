@@ -11,6 +11,7 @@ import sys
 import errno
 import time
 import os
+import subprocess
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -295,10 +296,51 @@ class Node:
                     if inc_data == "exit:":
                         self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         break
+                    elif inc_data[:7] == "inccmd:":
+                        cmd = inc_data[7:]
+                        print(f">>> executing command: {cmd} ...")
+                        self.exec_cmd(cmd=cmd, ip=ip, q=q, c=c)
+                        continue
                 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
                     print(f"{t} :: [{ip}:{port}] :: {inc_data}")
 
+        return 0
+
+
+    #
+    #
+    #
+    def exec_cmd(self, cmd: str, ip: str, q: queue.Queue, c: _Const) -> int:
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["type"] == "OUT"
+        }
+        
+        if not target:
+            print(f"target {ip} with type \"OUT\" doesn't exist")
+            return 1
+
+
+        print(f"DEBUG: TARGET: {target}")
+
+
+        cmd_args = cmd.split(" ")
+        ret = subprocess.run([cmd_args[0], cmd_args[1]], capture_output=True, text=True).stdout
+
+        try:
+            sendret = target["node"]["socket"].send(ret.encode("utf-8"))
+        except socket.error as e:
+            print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
+            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
+            return 1
+        except Exception as e:
+            print(f"unexpected error on cmd-ret socket.send(): {e.args[::-1]}")
+            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
+            return 1
+        
+        print(">>> command executed and output back to node")
         return 0
 
 
@@ -369,13 +411,14 @@ class Node:
     # send msg to single node
     #
     def send_to_node(self, ip: str, port: int, msg: bytes, c: _Const) -> int:
-
-        target = {"node": self._tcp_connections[node] for node in range(len(self._tcp_connections)) if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port}
-
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["port"] == port
+        }
         if not target:
             print(f"target {ip}:{port} doesn't exist")
             return 1
-
         try:
             target["node"]["socket"].send(msg)
         except socket.error as e:
@@ -386,7 +429,6 @@ class Node:
             print(f"unexpected error on socket.send(): {e.args[::-1]}")
             self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
             return 1
-
         return 0
 
 
@@ -409,6 +451,33 @@ class Node:
                 return 1
         return 0
 
+
+    #
+    #
+    #
+    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: _Const) -> int:
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["port"] == port
+        }
+        if not target:
+            print(f"target {ip}:{port} doesn't exist")
+            return 1
+        # send flag that packets are command
+        cmd_flag = "inccmd:".encode("utf-8")
+        print(f">>> sending command [{cmd}] to node [{ip}:{port}]")
+        try:
+            target["node"]["socket"].send(cmd_flag + cmd)
+        except socket.error as e:
+            print(f"socket error on cmd socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        except Exception as e:
+            print(f"unexpected error on cmd socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        return 0 
 
 
 #
@@ -511,6 +580,15 @@ def input_callback(inp, args: tuple) -> int:
             return 1
         node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode("utf-8"), c=c)
         return 0
+
+    elif inp[:10] == "cmdtonode:":
+        addr = inp[10:inp.index("|", 10, len(inp))].split(":")
+        cmd = inp[inp.index("|", 10, len(inp)):].lstrip("|")
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode("utf-8"), c=c)
+        return 0
+
 
     elif inp == "exit:":
         return exit_from_cmd(node)
