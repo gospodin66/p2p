@@ -323,18 +323,17 @@ class Node:
             return 1
 
         cmds = cmd.split(";")
-        rets = []
-        i=0
+        returns = []
         for cmd in cmds:
             cmd_args = cmd.strip().split(" ")
             if not cmd_args[1]:
                 cmd_args[1]=""
             print(f"DEBUG: CMD-ARGS: {cmd} ||| {cmd_args}")
-            rets[i] = subprocess.run([cmd_args[0], cmd_args[1]], capture_output=True, text=True).stdout
-            i+=1
+            r = subprocess.run([cmd_args[0], cmd_args[1]], capture_output=True, text=True).stdout
+            returns.append(r)
 
         try:
-            ret = '---'.join(rets)
+            ret = '---'.join(returns)
             target["node"]["socket"].send(ret.encode("utf-8"))
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
