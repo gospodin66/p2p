@@ -1,5 +1,5 @@
-FROM alpine:latest
-RUN apk update && apk add python3
+FROM ubuntu:latest
+RUN apt update && apt install python3 -y
 RUN mkdir /p2p/
 COPY ./inputthread.py /p2p/inputthread.py
 COPY ./node.py /p2p/node.py

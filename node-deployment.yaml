@@ -21,7 +21,7 @@ spec:
         app: p2pnode
     spec:
       containers:
-      - name: p2pnode-alpine
+      - name: p2pnode
         image: 192.168.49.1:5000/p2p:1.0
         tty: true
         stdin: true

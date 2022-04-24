@@ -324,8 +324,7 @@ class Node:
             return 1
 
         cmds = cmd.split(";")
-        _args = ""
-        returns = []
+        returned_outputs = []
         for cmd in cmds:
             if not cmd:
                 continue
@@ -333,10 +332,10 @@ class Node:
             full_cmd = cmd.strip().split(" ")
             print(f"executing command [{full_cmd}]")
             r = subprocess.check_output(full_cmd)
-            returns.append(r)
+            returned_outputs.append(r)
 
         try:
-            ret = "\n-----\n".join([str(r) for r in returns])
+            ret = "\n-----\n".join([str(r) for r in returned_outputs])
             target["node"]["socket"].send(ret.encode("utf-8"))
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
