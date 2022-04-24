@@ -323,6 +323,7 @@ class Node:
             return 1
 
         cmds = cmd.split(";")
+        _args = ""
         returns = []
         for cmd in cmds:
             if not cmd:
@@ -330,11 +331,12 @@ class Node:
 
             cmd_args = cmd.strip().split(" ")
             _cmd = cmd_args[0]
-            
-            if not len(cmd_args) == 2:
+            if not len(cmd_args) < 2:
                 _args = ""
             elif len(cmd_args) > 2:
                 _args = " ".join(cmd_args[1:])
+            else:
+                _args = str(cmd_args[1])
 
             print(f"DEBUG: CMD-ARGS: {cmd} ||| {cmd_args}")
 
