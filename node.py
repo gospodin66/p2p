@@ -322,10 +322,6 @@ class Node:
             print(f"target {ip} with type \"OUT\" doesn't exist")
             return 1
 
-
-        print(f"DEBUG: TARGET: {target}")
-
-
         cmd_args = cmd.split(" ")
         ret = subprocess.run([cmd_args[0], cmd_args[1]], capture_output=True, text=True).stdout
 
