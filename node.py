@@ -325,6 +325,8 @@ class Node:
         cmds = cmd.split(";")
         returns = []
         for cmd in cmds:
+            if not cmd:
+                continue
             cmd_args = cmd.strip().split(" ")
             if not len(cmd_args) == 2:
                 cmd_args.append("")
