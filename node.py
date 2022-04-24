@@ -327,6 +327,8 @@ class Node:
         i=0
         for cmd in cmds:
             cmd_args = cmd.strip().split(" ")
+            if not cmd_args[1]:
+                cmd_args[1]=""
             print(f"DEBUG: CMD-ARGS: {cmd} ||| {cmd_args}")
             rets[i] = subprocess.run([cmd_args[0], cmd_args[1]], capture_output=True, text=True).stdout
             i+=1
