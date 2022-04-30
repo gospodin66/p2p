@@ -287,11 +287,9 @@ class Node:
                     self.loop_connect_nodes(json_list, q)
                     continue
 
-                try:
+                if isinstance(inc_data, bytes):
                     inc_data = inc_data.decode().strip()
-                except Exception:
-                    print("inc data are bytes..")
-               
+
                 if inc_data:
                     if inc_data == "exit:":
                         self.close_socket(s=s, ssi=stream_in, q=q, c=c)
@@ -325,14 +323,19 @@ class Node:
 
         cmds = cmd.split(";")
         returned_outputs = []
+        
         for cmd in cmds:
             if not cmd:
                 continue
 
             full_cmd = cmd.strip().split(" ")
             print(f"executing command [{full_cmd}]")
-            r = subprocess.check_output(full_cmd)
-            returned_outputs.append(r)
+
+            try:
+                r = subprocess.check_output(full_cmd)
+                returned_outputs.append(r)
+            except Exception as e:
+                print(f"unexpected error on subprocess.check_output(): {e.args[::-1]}")
 
         try:
             ret = "\n-----\n".join([str(r) for r in returned_outputs])

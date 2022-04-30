@@ -29,6 +29,10 @@
     kubectl delete --all deploy --namespace=p2p
 # patch terminating pv
     kubectl patch pv pvc-dd92dc08-88de-4fad-a6a6-18f712f822ae -p '{"metadata":{"finalizers":null}}'
+# forward port to output socket
+    kubectl port-forward p2pnode-79bd4b6cd8-wkt9w
+ --address localhost,192.168.3.237 9999:45666
+
 
 
 
