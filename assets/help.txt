@@ -32,6 +32,10 @@
 # forward port to output socket
     kubectl port-forward p2pnode-79bd4b6cd8-wkt9w
  --address localhost,192.168.3.237 9999:45666
+# get pods ips (with names):
+    kubectl get pods -A -o jsonpath='{range .items[*]}{@.status.podIP}{" "}{@.metadata.name}{"\n"}{end}'
+    # get pods ips only
+    kubectl get pods -o=jsonpath="{range .items[*]}{.status.podIP}{','}{end}"
 
 
 

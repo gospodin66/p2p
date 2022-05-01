@@ -37,7 +37,6 @@ class Node:
         self._tcp_connections = [ self._socket ]
         self._INPUT, self._OUTPUT, self._EXCEPT = [], [], []
         self._EXIT_ON_CMD = False
-        print(f">>>\n>>> P2P Node {self._socket['ip']} {self._socket['port']}\n>>> exec \"getopts:\" for input options\n>>>\n")
 
 
     def get_socket(self) -> socket.socket:
@@ -555,6 +554,10 @@ def input_callback(inp, args: tuple) -> int:
         node.set_connections(new_list)
         q.task_done()
 
+    if not inp:
+        print("--- empty input..")
+        return 1
+
     if inp[:9] == "sendfile:":
         print("sending file..")
         out = r_file(inp.split(":")[1])
@@ -648,12 +651,24 @@ def main():
     c = _Const()
 
     # init non-blocking input thr
-    inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
+    inpthr = inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
+    # thread watcher
+    while 1:
+        if not inpthr.is_alive():
+            print("re-starting input-thread")
+            inpthr = None
+            inpthr = inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
+            break
+        else:
+            print("input-thread is alive.")
+            break
 
     # init node as tcp server
     if s.init_node_as_server(c) != 0:
         print("[!] failed to initialize node as server")
         exit(1)
+
+    print(f">>>\n>>> P2P Node {ip} {port}\n>>> exec \"getopts:\" for input options\n>>>\n")
 
     ret = s.handle_connections(q, c)
 

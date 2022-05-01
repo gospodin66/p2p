@@ -49,14 +49,13 @@ metadata:
   namespace: p2p
   name: p2pnode-connector
 spec:
-  type: NodePort
+  clusterIP: None
   selector:
     app: p2pnode
   ports:
     - protocol: TCP
       port: 45665
       targetPort: 45666
-      nodePort: 31001
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

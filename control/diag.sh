@@ -1,7 +1,7 @@
 #!/bin/bash
 IN=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2pnode)
 readarray -t fields <<<"$IN"
-SEP=$(python3 -c "print('-' * 140)")
+SEP=$(python3 -c "print('-' * 130)")
 if [ "$1" == "full" ];
 then
     for node in "${fields[@]}" ;do
@@ -14,8 +14,13 @@ fi
 printf '%s\n' "--- listing nodes ---"
 kubectl get node -o wide
 printf '\n%s\n' "$SEP"
+printf '%s\n' "--- listing deployments ---"
+kubectl get deploy -o wide
+printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing services ---"
 kubectl get svc -o wide
+printf '\n'
+kubectl describe svc p2pnode-connector
 printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing running pods ---"
 kubectl get pods -o wide --field-selector=status.phase=Running
