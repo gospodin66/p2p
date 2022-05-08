@@ -11,7 +11,7 @@ metadata:
   labels:
     app: p2pnode
 spec:
-  replicas: 5
+  replicas: 3
   selector:
     matchLabels:
       app: p2pnode
@@ -43,6 +43,38 @@ spec:
           persistentVolumeClaim:
             claimName: p2pnode-pvc
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: p2p
+  name: p2p-bot-node
+  labels:
+    app: p2p-bot-node
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: p2p-bot-node
+  template:
+    metadata:
+      labels:
+        app: p2p-bot-node
+    spec:
+      containers:
+      - name: p2p-bot-node
+        image: 192.168.49.1:5000/p2p-bot:1.0
+        tty: true
+        ports:
+        - containerPort: 45666
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 50m
+            memory: 200Mi
+          requests:
+            cpu: 20m
+            memory: 100Mi
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -56,6 +88,41 @@ spec:
     - protocol: TCP
       port: 45665
       targetPort: 45666
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: p2p
+  name: p2p-bot-node-connector
+spec:
+  clusterIP: None
+  selector:
+    app: p2p-bot-node
+  ports:
+    - protocol: TCP
+      port: 45667
+      targetPort: 45666
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-0
+spec:
+  containers:
+  - name: node-0
+    image: 192.168.49.1:5000/p2p-0:1.0
+    tty: true
+    stdin: true
+    ports:
+    - containerPort: 45666
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 50m
+        memory: 200Mi
+      requests:
+        cpu: 20m
+        memory: 100Mi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

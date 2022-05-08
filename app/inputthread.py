@@ -36,6 +36,7 @@ class InputThread(threading.Thread):
                 # => echo -n "connnode:172.17.0.7:45666" | /p2p/node.py `hostname -I` 45666
                 #
                 if not sys.stdin.isatty():
+                    print("setting sys.stdin as tty..")
                     sys.stdin = open("/dev/tty")
                 continue
             except Exception as e:

@@ -21,6 +21,7 @@ printf '%s\n' "--- listing services ---"
 kubectl get svc -o wide
 printf '\n'
 kubectl describe svc p2pnode-connector
+kubectl describe svc p2p-bot-node-connector
 printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing running pods ---"
 kubectl get pods -o wide --field-selector=status.phase=Running

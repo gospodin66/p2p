@@ -12,7 +12,7 @@
 # set namespace
     kubectl config set-context --current --namespace=p2p
 # deploy
-    kubectl apply -f /home/cheki/projects/python/p2p/node-deployment.yaml
+    kubectl apply -f /home/cheki/projects/python/p2p/deployment/node-deployment.yaml
 # run dummy img
     kubectl run p2p \
     --image=192.168.49.1:5000/p2p:1.0 \
