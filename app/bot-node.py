@@ -444,11 +444,6 @@ def validate_ip_port(ip: str, port: int) -> int:
 def main():
     _argc = len(sys.argv)
     # ip:port provided
-
-
-    print(f"DEBUG ::|| {sys.argv}")
-
-
     if _argc >= 2:
         
         host = sys.argv[1].split(':')

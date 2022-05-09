@@ -590,12 +590,10 @@ def main():
 
         host = sys.argv[1].split(':')
         ip, port = (str(host[0]), int(host[1]))
-
-        print(ip, port)
-
         if validate_ip_port(ip, port) != 0:
             print(f"invalid ip:port.")
             exit(1)
+
     # no args
     else:
         default_port = 45666
