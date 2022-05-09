@@ -343,8 +343,10 @@ class Node:
 
         try:
             ret = "\n-----\n".join([str(r) for r in returned_outputs])
-            b64ret = base64.b64encode(ret.encode())
+            b64ret = "inc-ret-cmd:".encode() + base64.b64encode(ret.encode())
+
             target["node"]["socket"].send(b64ret)
+            
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
             self.close_socket(s=target["node"]["socket"], ssi=[], c=c)

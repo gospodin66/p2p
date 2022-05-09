@@ -301,7 +301,16 @@ class Node:
                     if inc_data == "exit:":
                         self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         break
-                    
+
+                    elif inc_data[:12] == "inc-ret-cmd:":
+                        try:
+                            inc_data = base64.b64decode(inc_data[12:]).decode()
+                            if isinstance(inc_data, bytes):
+                                inc_data = inc_data.decode()
+                        except Exception as e:
+                            print(f"unexpected error on base64-decode: {e.args[::-1]}")
+
+
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
                     print(f"{t} :: [{ip}:{port}] :: {inc_data}")
 
