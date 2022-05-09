@@ -22,7 +22,7 @@ printf '%s\n' "--- running default nodes"
 for node in "${fields_nodes[@]}" ;do
     printf '%s\n' "--- starting node: $node"
     node_ip=$(kubectl get pods -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
-    cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} &"
+    cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
 done
 
