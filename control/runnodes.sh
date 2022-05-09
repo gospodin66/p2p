@@ -1,27 +1,33 @@
-#!/bin/sh
-AUTO_CONNECT_CMD=$(cat ../assets/_node.txt)
-NODE_TO_SKIP="p2pnode-79bd4b6cd8-qsp8d"
+#!/bin/bash
+n0ip=$(kubectl get pods -o=jsonpath="{range .items[0]}{.status.podIP}{end}")
+node_port=45666
+n0=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0)
+nodes=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2pnode)
+bots=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
 
-IN=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2pnode)
-readarray -t fields <<<"$IN"
+cmdstr="python3 /p2p/bot-node.py \`hostname -I\`:${node_port} ${n0ip}:${node_port}"
 
-for node in "${fields[@]}" ;do
-    if [ "$node" == "pod/$NODE_TO_SKIP" ];
-    then
-        printf '%s\n' "--- skipping node: $node ---"
-    else
-        printf '%s\n' "--- starting node: $node ---"
-        # auto-connect
-        kubectl exec -it $node -- bash -c 'echo -n "'$AUTO_CONNECT_CMD'" | /p2p/node.py `hostname -I` 45666'
-    fi
+readarray -t fields_nodes <<<"$nodes"
+readarray -t fields_bots <<<"$bots"
+
+printf '\n%s\n' "debug: $cmdstr"
+
+echo 'DEBUG:::: `hostname -I`:'"$node_port"' '"$n0ip"':'"$node_port"''
+
+printf '%s\n' "--- running bot nodes"
+for node in "${fields_bots[@]}" ;do
+    printf '%s\n' "--- starting node: $node"
+    kubectl exec $node -- bash -c '"'$cmdstr'"'
 done
+
+# printf '%s\n' "--- running default nodes"
+# for node in "${fields_nodes[@]}" ;do
+    # printf '%s\n' "--- starting node: $node"
+    # kubectl exec -it $node -- bash -c 'python3 /p2p/node.py `hostname -I`'"$node_port"''
+# done
+
 exit 0
 
-# init as daemon
-# kubectl exec p2pnode-79bd4b6cd8-qsp8d -- bash -c '/p2p/node.py `hostname -I` 45666 &'
 
-# init 0. node (e.g. 172.17.0.6:45666)
-# kubectl exec -it p2pnode-79bd4b6cd8-qsp8d -- bash -c '/p2p/node.py `hostname -I` 45666'
+# kubectl exec -it p2p-bot-node-5d8f7767cf-psncc -- bash -c 'python3 /p2p/bot-node.py `hostname -I`:45666 172.17.0.13:45666'
 
-# init node with auto-connection to 0.
-# kubectl exec -it p2pnode-79bd4b6cd8-qsp8d -- bash -c 'echo -n "connnode:172.17.0.3:45666" | /p2p/node.py `hostname -I` 45666'

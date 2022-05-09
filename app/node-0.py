@@ -584,15 +584,18 @@ def input_callback(inp, args: tuple) -> int:
 #
 def main():
     _argc = len(sys.argv)
-    # ip:port provided
-    if _argc == 3:
-        if not isinstance(sys.argv[1], str) \
-        or not isinstance(sys.argv[2], str) \
-        or not sys.argv[2].isnumeric():
-            print(f"invalid arguments type for ip::port >>> {sys.argv[1]}::{sys.argv[2]}")
-            exit(1)
 
-        ip, port = (str(sys.argv[1]), int(sys.argv[2]))
+    # ip:port provided
+    if _argc == 2:
+
+        host = sys.argv[1].split(':')
+        ip, port = (str(host[0]), int(host[1]))
+
+        print(ip, port)
+
+        if validate_ip_port(ip, port) != 0:
+            print(f"invalid ip:port.")
+            exit(1)
     # no args
     else:
         default_port = 45666
@@ -600,10 +603,6 @@ def main():
             # assign default host ip & port
             ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
             print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
-        elif _argc == 2:
-            # assign default port
-            ip, port = (str(sys.argv[1]), default_port)
-            print(f"port not provided >>> using default port >>> {ip}:{port}")
         else:
             print("invalid arguments")
             exit(1)
@@ -633,7 +632,7 @@ def main():
         print("[!] failed to initialize node as server")
         exit(1)
 
-    print(f">>>\n>>> P2P Node-0 {ip} {port}\n")
+    print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
     ret = s.handle_connections(q, c)
 
