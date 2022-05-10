@@ -624,7 +624,13 @@ def main():
     # ip:port provided
     if _argc >= 2:
         host = sys.argv[1].split(':')
-        ip, port = (str(host[0]), int(host[1]))
+
+        if len(host) == 2:
+            ip, port = (str(host[0]), int(host[1]))
+        else:
+            print(f"invalid host (ip:port): {host}")
+            exit(1)
+
         if validate_ip_port(ip, port) != 0:
             print(f"invalid host (ip:port): {host}")
             exit(1)
@@ -648,9 +654,6 @@ def main():
         else:
             print("invalid arguments")
             exit(1)
-
-    if validate_ip_port(ip, port) != 0:
-        exit(1)
     
     s = Node(ip, port)
     q = queue.Queue(20)
@@ -677,10 +680,9 @@ def main():
     print(f">>>\n>>> P2P Node {ip} {port}\n>>> exec \"getopts:\" for input options\n>>>\n")
 
     # make initial connection
-    if ip_0 and port_0:
-        if validate_ip_port(ip_0, port_0) == 0:
-            print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
-            s.connect_to_node(ip=ip_0, port=port_0)
+    if ip_0 and port_0 and validate_ip_port(ip_0, port_0) == 0:
+        print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
+        s.connect_to_node(ip=ip_0, port=port_0)
 
     ret = s.handle_connections(q, c)
 

@@ -20,14 +20,15 @@ done
 
 printf '%s\n' "--- running default nodes"
 for node in "${fields_nodes[@]}" ;do
-    printf '%s\n' "--- starting node: $node"
+    printf '%s\n' "--- starting node ${cnt}: $node"
     node_ip=$(kubectl get pods -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
     cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
+    ((cnt++))
 done
 
 exit 0
 
-
+# cmdtonode:172.17.0.2:45666|curl -L https://google.com
 # kubectl exec -it p2p-bot-node-5d8f7767cf-psncc -- bash -c 'python3 /p2p/bot-node.py `hostname -I`:45666 172.17.0.13:45666'
 

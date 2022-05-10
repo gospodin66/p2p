@@ -310,6 +310,10 @@ class Node:
                         except Exception as e:
                             print(f"unexpected error on base64-decode: {e.args[::-1]}")
 
+                    elif isbase64(inc_data):
+                        inc_data = base64.b64decode(inc_data[12:]).decode()
+                        if isinstance(inc_data, bytes):
+                            inc_data = inc_data.decode()
 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
                     print(f"{t} :: [{ip}:{port}] :: {inc_data}")
@@ -455,6 +459,21 @@ class Node:
 
 #
 #
+#
+def isbase64(s: str) -> bool:
+    try:
+        res = base64.b64decode(s)
+        return True
+    except Exception:
+        return False
+    return False
+
+
+
+
+
+#
+#
 # read file
 def r_file(fpath: str) -> bytes:
     fcontents = b''
@@ -566,6 +585,11 @@ def input_callback(inp, args: tuple) -> int:
         node.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c)
         return 0
 
+    elif inp[:6] == "bccmd:":
+        print(f">>> broadcasting command [{inp[6:]}]")
+        cmd = str("inccmd:" + inp[6:]).encode()
+        node.broadcast_msg(msg=cmd, q=q, c=c)
+        return 0
 
     elif inp == "exit:":
         return exit_from_cmd(node)

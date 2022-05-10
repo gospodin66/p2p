@@ -445,9 +445,14 @@ def main():
     _argc = len(sys.argv)
     # ip:port provided
     if _argc >= 2:
-        
         host = sys.argv[1].split(':')
-        ip, port = (str(host[0]), int(host[1]))
+        
+        if len(host) == 2:
+            ip, port = (str(host[0]), int(host[1]))
+        else:
+            print(f"invalid host (ip:port): {host}")
+            exit(1)
+
         if validate_ip_port(ip, port) != 0:
             print(f"invalid host (ip:port): {host}")
             exit(1)
