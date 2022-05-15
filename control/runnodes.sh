@@ -26,7 +26,7 @@ for node in "${fields_nodes[@]}" ;do
 
     printf '%s\n' "--- starting node ${cnt}: $node | $node_ip"
 
-    cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
+    cmdstr="python3 /p2p/init.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
     ((cnt++))
 done
