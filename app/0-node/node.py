@@ -6,29 +6,15 @@
 ###                         just anyone       ###
 #################################################
 #################################################
-
-import sys
-sys.path.append("/home/cheki/projects/python/p2p/app/inputthread")
-
-import threading
 import socket
-import inputthread
-import json
-import random
 import select
 import queue
+import node_fnc
+import random
+import json
 import errno
-import time
-import os
-import subprocess
 import base64
-from dataclasses import dataclass
-
-@dataclass(frozen=True)
-class _Const:
-    BUFFER_SIZE = 1024
-    MAX_CONNECTIONS = 20
-    TIME_FORMAT = "%Y-%m-%d %I:%M:%S %p"
+import time
 
 
 class Node:
@@ -70,7 +56,7 @@ class Node:
     #
     #
     #
-    def init_server(self, c: _Const) -> int:
+    def init_server(self, c: node_fnc._Const) -> int:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
@@ -178,7 +164,7 @@ class Node:
     #
     # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
-    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c = _Const) -> int:
+    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c = node_fnc._Const) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -236,7 +222,7 @@ class Node:
     #
     # handle recv from stream_select
     #
-    def handle_connections(self, q: queue.Queue, c: _Const) -> int:
+    def handle_connections(self, q: queue.Queue, c: node_fnc._Const) -> int:
 
         stream_in = [ self._socket["socket"] ]
         select_timeout_sec = 3
@@ -312,7 +298,7 @@ class Node:
                         except Exception as e:
                             print(f"unexpected error on base64-decode: {e.args[::-1]}")
 
-                    elif isbase64(inc_data):
+                    elif node_fnc.isbase64(inc_data):
                         inc_data = base64.b64decode(inc_data[12:]).decode()
                         if isinstance(inc_data, bytes):
                             inc_data = inc_data.decode()
@@ -327,7 +313,7 @@ class Node:
     # disconnect node by command
     # TODO: also remove INC node
     #
-    def dc_node(self, ip: str, port: int, q: queue.Queue, c: _Const) -> None:
+    def dc_node(self, ip: str, port: int, q: queue.Queue, c: node_fnc._Const) -> None:
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
                 self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
@@ -338,7 +324,7 @@ class Node:
     # close socket | remove from lists | re-send new list to stream_in thread
     # ssi => stream-select-inputs list
     #
-    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue, c: _Const) -> None:
+    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue, c: node_fnc._Const) -> None:
         try:
             s.shutdown(socket.SHUT_RDWR)
         except socket.error as e:
@@ -389,7 +375,7 @@ class Node:
     #
     # send msg to single node
     #
-    def send_to_node(self, ip: str, port: int, msg: bytes, c: _Const) -> int:
+    def send_to_node(self, ip: str, port: int, msg: bytes, c: node_fnc._Const) -> int:
         target = {
             "node": self._tcp_connections[node] \
                     for node in range(len(self._tcp_connections)) \
@@ -414,7 +400,7 @@ class Node:
     #
     #
     #
-    def broadcast_msg(self, msg: bytes, q: queue.Queue, c: _Const) -> int:
+    def broadcast_msg(self, msg: bytes, q: queue.Queue, c: node_fnc._Const) -> int:
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
                 continue
@@ -434,7 +420,7 @@ class Node:
     #
     #
     #
-    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: _Const) -> int:
+    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: node_fnc._Const) -> int:
         target = {
             "node": self._tcp_connections[node] \
                     for node in range(len(self._tcp_connections)) \
@@ -457,211 +443,3 @@ class Node:
             self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
             return 1
         return 0 
-
-
-#
-#
-#
-def isbase64(s: str) -> bool:
-    try:
-        res = base64.b64decode(s)
-        return True
-    except Exception:
-        return False
-    return False
-
-
-
-#
-#
-# read file
-def r_file(fpath: str) -> bytes:
-    fcontents = b''
-    try:
-        print(f"PATH: {fpath}")
-        with open(fpath, "rb") as f:
-            fcontents += f.read()
-    except Exception as e:
-        print(f"unexpected error on file.read(): {e.args[::-1]}")
-        return b''
-    return fcontents
-
-
-#
-#
-#
-def display_options() -> None:
-    print("| commands |\n> getopts:\n> conninfo:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
-
-
-#
-#
-#
-def validate_ip_port(ip: str, port: int) -> int:
-    # validate ip
-    try:
-        socket.inet_aton(ip)
-    except socket.error as e: 
-        print(f"invalid ip address: {e.args[::-1]}")
-        return 1
-    # validate port
-    if 0 < port > 65535:
-        print("port number not in range.")
-        return 1
-    return 0
-
-
-# global callback for input-thread (broadcast/exec messages/commands)
-# inp  => input string | bytes
-# args => additional args to fnc
-def input_callback(inp, args) -> int:
-
-    # close node from input thread
-    def exit_from_cmd(node: Node) -> int:
-        node.close_master_socket()
-        node._EXIT_ON_CMD = True
-        return 1
-
-    node, c, q = (args["_node"], args["_const"], args["_queue"])
-
-    if not isinstance(node, Node) or not isinstance(c, _Const) or not isinstance(q, queue.Queue):
-        print("input-callback: invalid class instances.. exiting input thread..")
-        return 1
-    
-    # update input-thread tcp connections list
-    if not q.empty():
-        new_list = q.get_nowait()
-        node.set_connections(new_list)
-        q.task_done()
-
-    if not inp:
-        print("--- empty input..")
-        return 1
-
-    if inp[:9] == "sendfile:":
-        print("sending file..")
-        out = r_file(inp.split(":")[1])
-        # TODO: send & recv file as function
-
-    elif inp == "getopts:":
-        display_options()
-        return 0
-
-    elif inp == "conninfo:":
-        node.conninfo()
-        return 0
-
-    elif inp[:9] == "connnode:":
-        addr = inp[9:len(inp)].split(":")
-        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
-        node.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
-        return 0
-
-    elif inp[:7] == "dcnode:":
-        addr = inp[7:len(inp)].split(":")
-        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
-        node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
-        return 0
-
-    elif inp[:11] == "sendtonode:":
-        addr = inp[11:inp.index("|", 11, len(inp))].split(":")
-        msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
-        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
-        node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c)
-        return 0
-
-    elif inp[:10] == "cmdtonode:":
-        addr = inp[10:inp.index("|", 10, len(inp))].split(":")
-        cmd = inp[inp.index("|", 10, len(inp)):].lstrip("|")
-        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
-        node.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c)
-        return 0
-
-    elif inp[:6] == "bccmd:":
-        print(f">>> broadcasting command [{inp[6:]}]")
-        cmd = str("inccmd:" + inp[6:]).encode()
-        node.broadcast_msg(msg=cmd, q=q, c=c)
-        return 0
-
-    elif inp == "exit:":
-        return exit_from_cmd(node)
-
-    else:
-        # default
-        out = inp.encode()
-
-    node.broadcast_msg(msg=out, q=q, c=c)
-
-    return 0
-
-
-#
-#
-#
-def main():
-    _argc = len(sys.argv)
-    # ip:port provided
-    if _argc == 2:
-
-        host = sys.argv[1].split(':')
-        ip, port = (str(host[0]), int(host[1]))
-        if validate_ip_port(ip, port) != 0:
-            print(f"invalid ip:port.")
-            exit(1)
-    # no args
-    else:
-        default_port = 45666
-        if _argc == 1:
-            # assign default host ip & port
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
-            print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
-        else:
-            print("invalid arguments")
-            exit(1)
-
-    if validate_ip_port(ip, port) != 0:
-        exit(1)
-    
-    n = Node(ip, port)
-    q = queue.Queue(20)
-    c = _Const()
-
-    # init non-blocking input thr
-    inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
-    # thread watcher
-    while 1:
-        if not inpthr.is_alive():
-            print("re-starting input-thread")
-            inpthr = None
-            inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
-            break
-        else:
-            print("input-thread is alive.")
-            break
-
-    # init node as tcp server
-    if n.init_server(c) != 0:
-        print("[!] failed to initialize node as server")
-        exit(1)
-
-    print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
-
-    ret = n.handle_connections(q, c)
-
-    if ret == 0:
-        print(f"exited normally with [{ret}]")
-        n.close_master_socket()
-    elif ret == 1:
-        print(f"exited by cmd with [{ret}]")
-    else:
-        print(f"exited with error [{ret}]")
-    
-    exit(ret)
-
-
-if __name__ == '__main__':
-    main()

@@ -1,15 +1,14 @@
 import threading
-import time
 import sys
 
 class InputThread(threading.Thread):
 
-    # input_callback  => function to exec in thread loop
-    # kwargs (any type) => additional arguments to function
     def __init__(self, thread_name = 'input-thread', input_callback = None, **kwargs):
         self.input_callback = input_callback
         self.args = kwargs
         self.eof_flag = False
+        # declare that InputThread class inherits from threading.Thread class
+        # super(param1 >>> {subclass}, param2 >>> {object that is an instance of subclass})
         super(InputThread, self).__init__(name=thread_name)
         self.start()
 
@@ -39,7 +38,7 @@ class InputThread(threading.Thread):
                     sys.stdin = open("/dev/tty")
                 continue
             except Exception as e:
-                print(f"input-thread error: unexpected error on input(): {e}|{e.args[::-1]}")
+                print(f"input-thread error: unexpected error on input(): {e.args[::-1]}")
                 break
         print("\ninput-thread exited")
         return
