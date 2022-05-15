@@ -11,17 +11,21 @@ readarray -t fields_bots <<<"$bots"
 printf '%s\n' "--- running bot nodes"
 cnt=1
 for node in "${fields_bots[@]}" ;do
-    printf '%s\n' "--- starting bot ${cnt}: $node"
-    node_ip=$(kubectl get pods -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
-    cmdstr="python3 /p2p/bot-node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
+    node_ip=$(kubectl get po -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
+
+    printf '%s\n' "--- starting bot ${cnt}: $node | $node_ip"
+
+    cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
     ((cnt++))
 done
 
 printf '%s\n' "--- running default nodes"
 for node in "${fields_nodes[@]}" ;do
-    printf '%s\n' "--- starting node ${cnt}: $node"
-    node_ip=$(kubectl get pods -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
+    node_ip=$(kubectl get po -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
+
+    printf '%s\n' "--- starting node ${cnt}: $node | $node_ip"
+
     cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
     ((cnt++))

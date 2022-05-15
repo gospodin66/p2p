@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
 
+#################################################
+### NODE 0 [MASTER] - not executing commands  ###
+###                 - TODO: not connecting to ###
+###                         just anyone       ###
+#################################################
+#################################################
+
+import sys
+sys.path.append("/home/cheki/projects/python/p2p/app/inputthread")
+
 import threading
 import socket
 import inputthread
@@ -7,12 +17,11 @@ import json
 import random
 import select
 import queue
-import base64
-import sys
 import errno
 import time
 import os
 import subprocess
+import base64
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -294,63 +303,23 @@ class Node:
                     if inc_data == "exit:":
                         self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         break
-                    elif inc_data[:7] == "inccmd:":
-                        cmd = inc_data[7:]
-                        print(f">>> incomming command sequence [{cmd}]")
-                        # port is not needed as target is searched based upon same IP and "OUT" socket type => node socket pair
-                        self.exec_cmd(cmd=cmd, ip=ip, q=q, c=c)
-                        continue
-                
+
+                    elif inc_data[:12] == "inc-ret-cmd:":
+                        try:
+                            inc_data = base64.b64decode(inc_data[12:]).decode()
+                            if isinstance(inc_data, bytes):
+                                inc_data = inc_data.decode()
+                        except Exception as e:
+                            print(f"unexpected error on base64-decode: {e.args[::-1]}")
+
+                    elif isbase64(inc_data):
+                        inc_data = base64.b64decode(inc_data[12:]).decode()
+                        if isinstance(inc_data, bytes):
+                            inc_data = inc_data.decode()
+
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
                     print(f"{t} :: [{ip}:{port}] :: {inc_data}")
 
-        return 0
-
-
-    #
-    #
-    #
-    def exec_cmd(self, cmd: str, ip: str, q: queue.Queue, c: _Const) -> int:
-        target = {
-            "node": self._tcp_connections[node] \
-                    for node in range(len(self._tcp_connections)) \
-                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["type"] == "OUT"
-        }
-        
-        if not target:
-            print(f"target {ip} with type \"OUT\" doesn't exist")
-            return 1
-
-        cmds = cmd.split(";")
-        returned_outputs = []
-        
-        for cmd in cmds:
-            if not cmd:
-                continue
-
-            full_cmd = cmd.strip().split(" ")
-            print(f"executing command [{full_cmd}]")
-
-            try:
-                r = subprocess.check_output(full_cmd)
-                returned_outputs.append(r)
-            except Exception as e:
-                print(f"unexpected error on subprocess.check_output(): {e.args[::-1]}")
-
-        try:
-            ret = "\n-----\n".join([str(r) for r in returned_outputs])
-            b64ret = base64.b64encode(ret.encode())
-            target["node"]["socket"].send(b64ret)
-        except socket.error as e:
-            print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
-            return 1
-        except Exception as e:
-            print(f"unexpected error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], q=q, c=c)
-            return 1
-        
-        print(f">>> command sequence executed and output sent back to node: {target['node']['ip']}:{target['node']['port']}")
         return 0
 
 
@@ -476,7 +445,7 @@ class Node:
             return 1
         # send flag that packets are command
         cmd_flag = "inccmd:".encode()
-        print(f">>> sending command [{cmd}] to node [{ip}:{port}]")
+        print(f">>> sending command [{cmd.decode()}] to node [{ip}:{port}]")
         try:
             target["node"]["socket"].send(cmd_flag + cmd)
         except socket.error as e:
@@ -488,6 +457,19 @@ class Node:
             self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
             return 1
         return 0 
+
+
+#
+#
+#
+def isbase64(s: str) -> bool:
+    try:
+        res = base64.b64decode(s)
+        return True
+    except Exception:
+        return False
+    return False
+
 
 
 #
@@ -533,6 +515,7 @@ def validate_ip_port(ip: str, port: int) -> int:
 # inp  => input string | bytes
 # args => additional args to fnc
 def input_callback(inp, args) -> int:
+
     # close node from input thread
     def exit_from_cmd(node: Node) -> int:
         node.close_master_socket()
@@ -598,6 +581,11 @@ def input_callback(inp, args) -> int:
         node.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c)
         return 0
 
+    elif inp[:6] == "bccmd:":
+        print(f">>> broadcasting command [{inp[6:]}]")
+        cmd = str("inccmd:" + inp[6:]).encode()
+        node.broadcast_msg(msg=cmd, q=q, c=c)
+        return 0
 
     elif inp == "exit:":
         return exit_from_cmd(node)
@@ -617,31 +605,16 @@ def input_callback(inp, args) -> int:
 def main():
     _argc = len(sys.argv)
     # ip:port provided
-    if _argc >= 2:
+    if _argc == 2:
+
         host = sys.argv[1].split(':')
-
-        if len(host) == 2:
-            ip, port = (str(host[0]), int(host[1]))
-        else:
-            print(f"invalid host (ip:port): {host}")
-            exit(1)
-
+        ip, port = (str(host[0]), int(host[1]))
         if validate_ip_port(ip, port) != 0:
-            print(f"invalid host (ip:port): {host}")
+            print(f"invalid ip:port.")
             exit(1)
-
-        # initial target provided
-        if _argc == 3:
-            rn_0 = sys.argv[2].split(':')
-            ip_0, port_0 = (str(rn_0[0]), int(rn_0[1]))
-        else:
-            ip_0, port_0 = (None, None)
-
     # no args
     else:
-        ip_0, port_0 = (None, None)
         default_port = 45666
-
         if _argc == 1:
             # assign default host ip & port
             ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
@@ -649,6 +622,9 @@ def main():
         else:
             print("invalid arguments")
             exit(1)
+
+    if validate_ip_port(ip, port) != 0:
+        exit(1)
     
     n = Node(ip, port)
     q = queue.Queue(20)
@@ -672,12 +648,7 @@ def main():
         print("[!] failed to initialize node as server")
         exit(1)
 
-    print(f">>>\n>>> P2P Node {ip} {port}\n>>> exec \"getopts:\" for input options\n>>>\n")
-
-    # make initial connection
-    if ip_0 and port_0 and validate_ip_port(ip_0, port_0) == 0:
-        print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
-        n.connect_to_node(ip=ip_0, port=port_0)
+    print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
     ret = n.handle_connections(q, c)
 

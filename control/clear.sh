@@ -1,8 +1,8 @@
 #!/bin/sh
 
-DOCKER_IMG="192.168.49.1:5000/p2p:1.0"
-DOCKER_IMG_0="192.168.49.1:5000/p2p-0:1.0"
-DOCKER_IMG_BOT="192.168.49.1:5000/p2p-bot:1.0"
+DOCKER_IMG="192.168.49.1:5000/p2p-def-node:1.0"
+DOCKER_IMG_0="192.168.49.1:5000/p2p-0-node:1.0"
+DOCKER_IMG_BOT="192.168.49.1:5000/p2p-bot-node:1.0"
 
 printf '%s\n' "--- terminating/removing current stack.."
 kubectl delete deploy p2pnode p2p-bot-node && \

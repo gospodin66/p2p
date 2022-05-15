@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: p2pnode
-        image: 192.168.49.1:5000/p2p:1.0
+        image: 192.168.49.1:5000/p2p-def-node:1.0
         tty: true
         stdin: true
         ports:
@@ -62,7 +62,7 @@ spec:
     spec:
       containers:
       - name: p2p-bot-node
-        image: 192.168.49.1:5000/p2p-bot:1.0
+        image: 192.168.49.1:5000/p2p-bot-node:1.0
         tty: true
         ports:
         - containerPort: 45666
@@ -110,7 +110,7 @@ metadata:
 spec:
   containers:
   - name: node-0
-    image: 192.168.49.1:5000/p2p-0:1.0
+    image: 192.168.49.1:5000/p2p-0-node:1.0
     tty: true
     stdin: true
     ports:
