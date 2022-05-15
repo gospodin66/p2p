@@ -5,13 +5,12 @@ import sys
 class InputThread(threading.Thread):
 
     # input_callback  => function to exec in thread loop
-    # args (any type) => additional arguments to function
-    # name (string)   => thread name
-    def __init__(self, input_callback = None, args = None, name='input-thread'):
+    # kwargs (any type) => additional arguments to function
+    def __init__(self, thread_name = 'input-thread', input_callback = None, **kwargs):
         self.input_callback = input_callback
-        self.args = args
+        self.args = kwargs
         self.eof_flag = False
-        super(InputThread, self).__init__(name=name)
+        super(InputThread, self).__init__(name=thread_name)
         self.start()
 
 
@@ -23,7 +22,7 @@ class InputThread(threading.Thread):
             try:
                 inp = input()
                 if inp:
-                    if self.input_callback(inp, self.args) == 1:
+                    if self.input_callback(inp=inp, args=self.args) == 1:
                         break
             except ValueError as e:
                 print(f"input-thread error: attempt to send on broken connection: {e.args[::-1]}")
@@ -40,7 +39,7 @@ class InputThread(threading.Thread):
                     sys.stdin = open("/dev/tty")
                 continue
             except Exception as e:
-                print(f"input-thread error: unexpected error on input(): {e.args[::-1]}")
+                print(f"input-thread error: unexpected error on input(): {e}|{e.args[::-1]}")
                 break
         print("\ninput-thread exited")
         return

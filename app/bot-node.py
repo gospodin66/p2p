@@ -67,7 +67,7 @@ class Node:
     #
     #
     #
-    def init_node_as_server(self, c: _Const) -> int:
+    def init_server(self, c: _Const) -> int:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
@@ -377,9 +377,13 @@ class Node:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == s:
+
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+
+                print(f"{t} :: disconnected {socket_direction_type} \
+                {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+
                 del self._tcp_connections[node]
                 break
 
@@ -446,7 +450,7 @@ def main():
     # ip:port provided
     if _argc >= 2:
         host = sys.argv[1].split(':')
-        
+
         if len(host) == 2:
             ip, port = (str(host[0]), int(host[1]))
         else:
@@ -479,11 +483,11 @@ def main():
 
 
     
-    s = Node(ip, port)
+    n = Node(ip, port)
     c = _Const()
 
     # init node as tcp server
-    if s.init_node_as_server(c) != 0:
+    if n.init_server(c) != 0:
         print("[!] failed to initialize node as server")
         exit(1)
 
@@ -493,13 +497,13 @@ def main():
     if ip_0 and port_0:
         if validate_ip_port(ip_0, port_0) == 0:
             print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
-            s.connect_to_node(ip=ip_0, port=port_0)
+            n.connect_to_node(ip=ip_0, port=port_0)
 
-    ret = s.handle_connections(c)
+    ret = n.handle_connections(c)
 
     if ret == 0:
         print(f"exited normally with [{ret}]")
-        s.close_master_socket()
+        n.close_master_socket()
     elif ret == 1:
         print(f"exited by cmd with [{ret}]")
     else:

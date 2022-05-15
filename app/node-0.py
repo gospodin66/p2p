@@ -68,7 +68,7 @@ class Node:
     #
     #
     #
-    def init_node_as_server(self, c: _Const) -> int:
+    def init_server(self, c: _Const) -> int:
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
@@ -470,8 +470,6 @@ def isbase64(s: str) -> bool:
 
 
 
-
-
 #
 #
 # read file
@@ -514,19 +512,15 @@ def validate_ip_port(ip: str, port: int) -> int:
 # global callback for input-thread (broadcast/exec messages/commands)
 # inp  => input string | bytes
 # args => additional args to fnc
-def input_callback(inp, args: tuple) -> int:
-    #
+def input_callback(inp, args) -> int:
+
     # close node from input thread
-    # node => Node instance
     def exit_from_cmd(node: Node) -> int:
         node.close_master_socket()
         node._EXIT_ON_CMD = True
         return 1
-    #
-    # s => Node instance
-    # c => _Consts instance
-    # q => Queue instance
-    node, c, q = (args[0], args[1], args[2])
+
+    node, c, q = (args["_node"], args["_const"], args["_queue"])
 
     if not isinstance(node, Node) or not isinstance(c, _Const) or not isinstance(q, queue.Queue):
         print("input-callback: invalid class instances.. exiting input thread..")
@@ -608,7 +602,6 @@ def input_callback(inp, args: tuple) -> int:
 #
 def main():
     _argc = len(sys.argv)
-
     # ip:port provided
     if _argc == 2:
 
@@ -617,7 +610,6 @@ def main():
         if validate_ip_port(ip, port) != 0:
             print(f"invalid ip:port.")
             exit(1)
-
     # no args
     else:
         default_port = 45666
@@ -632,35 +624,35 @@ def main():
     if validate_ip_port(ip, port) != 0:
         exit(1)
     
-    s = Node(ip, port)
+    n = Node(ip, port)
     q = queue.Queue(20)
     c = _Const()
 
     # init non-blocking input thr
-    inpthr = inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
+    inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
     # thread watcher
     while 1:
         if not inpthr.is_alive():
             print("re-starting input-thread")
             inpthr = None
-            inpthr = inputthread.InputThread(input_callback=input_callback, args=(s, c, q))
+            inpthr = inputthread.InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
             break
         else:
             print("input-thread is alive.")
             break
 
     # init node as tcp server
-    if s.init_node_as_server(c) != 0:
+    if n.init_server(c) != 0:
         print("[!] failed to initialize node as server")
         exit(1)
 
     print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
-    ret = s.handle_connections(q, c)
+    ret = n.handle_connections(q, c)
 
     if ret == 0:
         print(f"exited normally with [{ret}]")
-        s.close_master_socket()
+        n.close_master_socket()
     elif ret == 1:
         print(f"exited by cmd with [{ret}]")
     else:
