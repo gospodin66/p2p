@@ -50,10 +50,11 @@ def input_callback(inp, args) -> int:
         return 0
 
     elif inp[:7] == "dcnode:":
-        addr = inp[7:len(inp)].split(":")
-        if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
+        addr = inp[7:len(inp)]
+        # 1 as dummy port argument => disconnects by ip
+        if node_fnc.validate_ip_port(str(addr), 1) != 0:
             return 1
-        n.dc_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
+        n.dc_node(ip=str(addr), q=q, c=c)
         return 0
 
     elif inp[:11] == "sendtonode:":

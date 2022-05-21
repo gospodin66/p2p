@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
-#################################################
-### NODE 0 [MASTER] - not executing commands  ###
-###                 - TODO: not connecting to ###
-###                         just anyone       ###
-#################################################
-#################################################
+#######################################################################
+### NODE 0 [MASTER] - not executing commands                        ###
+###                 - input                                         ###
+###                 - TODO: selective connections (not any in list) ###
+###                 - ?????????                                     ###
+###                 - ?????????                                     ###
+###                 - ?????????                                     ###
+###                                                                 ###
+#######################################################################
+#######################################################################
 import socket
 import select
 import queue
@@ -102,11 +106,7 @@ class Node:
             self._tcp_connections.append(conn_socket)
             self.send_list(target=conn_socket["socket"])
             print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
-
         except socket.error as e:
-            
-            # TODO: Connection refused: check if firewall?
-
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
         except Exception as e:
@@ -208,14 +208,20 @@ class Node:
             # not connecting to self
             if json_list[node]["ip"] == self._socket["ip"] and json_list[node]["port"] == self._socket["port"]:
                 continue
+
+            # TODO: selective connections
+
             # not connecting to already connected
             for i in range(len(self._tcp_connections)):
                 if self._tcp_connections[i]["ip"] == json_list[node]["ip"] and self._tcp_connections[i]["port"] == json_list[node]["port"]:
                     already_connected = True
                     break
+            
             if already_connected:
                 continue
+
             self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+            
         q.put_nowait(self._tcp_connections)
 
 
@@ -250,7 +256,9 @@ class Node:
                     continue
 
                 if self.is_socket_closed(s):
-                    print(f"socket closed! removing..")
+                    
+                    # TODO: LOG >>> print(f"socket closed! removing..")
+                    
                     self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
@@ -311,13 +319,39 @@ class Node:
 
     #
     # disconnect node by command
-    # TODO: also remove INC node
     #
-    def dc_node(self, ip: str, port: int, q: queue.Queue, c: node_fnc._Const) -> None:
+    def dc_node(self, ip: str, q: queue.Queue, c: node_fnc._Const) -> None:
+        inc_type_port, out_type_port = (0, 0)
+        operation_success=False
+        # close "OUT" socket
         for node in range(len(self._tcp_connections)):
-            if self._tcp_connections[node]["ip"] == ip and int(self._tcp_connections[node]["port"]) == port:
-                self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
-                break
+            if self._tcp_connections[node]["ip"] == ip:
+                if self._tcp_connections[node]["type"] == "OUT":
+                    out_type_port = int(self._tcp_connections[node]["port"])
+
+                if self._tcp_connections[node]["ip"] == ip and \
+                (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) and \
+                self._tcp_connections[node]["type"] == "OUT":
+                    self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+                    break
+        # close "INC" socket
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == ip:
+                # get "INC" socket port
+                if self._tcp_connections[node]["type"] == "INC":
+                    inc_type_port = int(self._tcp_connections[node]["port"])
+
+                if self._tcp_connections[node]["ip"] == ip and \
+                (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) and \
+                self._tcp_connections[node]["type"] == "INC":
+                    self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], q=q, c=c)
+                    operation_success=True
+                    break
+                
+        if operation_success:
+            print(f">>> sockets closed successfuly for ip [{ip}].")
+        else:
+            print(f">>> error! sockets not closed for ip [{ip}].")
 
 
     #
