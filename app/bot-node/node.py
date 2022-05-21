@@ -483,8 +483,6 @@ def main():
             print("invalid arguments")
             exit(1)
 
-
-    
     n = Node(ip, port)
     c = _Const()
 

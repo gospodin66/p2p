@@ -57,6 +57,7 @@ spec:
       app: p2p-bot-node
   template:
     metadata:
+      namespace: p2p
       labels:
         app: p2p-bot-node
     spec:
@@ -106,6 +107,9 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
+  labels:
+    app: p2pnode
+  namespace: p2p
   name: node-0
 spec:
   containers:

@@ -71,7 +71,7 @@ def main():
     # make initial connection
     if ip_0 and port_0 and node_fnc.validate_ip_port(ip_0, port_0) == 0:
         print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
-        n.connect_to_node(ip=ip_0, port=port_0)
+        n.connect_to_node(ip=ip_0, port=port_0, c=c)
 
     ret = n.handle_connections(q, c)
 
