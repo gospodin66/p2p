@@ -27,6 +27,7 @@ class InputThread(threading.Thread):
                 print(f"input-thread error: attempt to send on broken connection: {e.args[::-1]}")
                 break
             except EOFError as e:
+                pass
                 # print(f"input-thread error: EOF: {e.args[::-1]}")
                 #
                 # temp workaround for piping into script
