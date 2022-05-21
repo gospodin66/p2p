@@ -61,6 +61,9 @@ class Node:
     #
     #
     def init_server(self, c: node_fnc._Const) -> int:
+
+        node_fnc.write_log(">>> Initializing server..", c)
+
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
@@ -368,7 +371,7 @@ class Node:
         if ssi:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
-            if self._tcp_connections[node]["socket"] == s:
+            if node and self._tcp_connections[node]["socket"] == s:
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
                 out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"

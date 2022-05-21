@@ -64,6 +64,9 @@ class Node:
     #
     #
     def init_server(self, c: node_fnc._Const) -> int:
+        
+        node_fnc.write_log(">>> Initializing server..", c)
+
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
             self._socket["socket"].listen(c.MAX_CONNECTIONS)
@@ -490,10 +493,14 @@ class Node:
     #
     #
     def broadcast_msg(self, msg: bytes, q: queue.Queue, c: node_fnc._Const) -> int:
+
+        out = f"broadcasting >>> {msg}"
+
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
                 continue
             try:
+                node_fnc.write_log(out, c)
                 self._tcp_connections[node]["socket"].send(msg)
             except socket.error as e:
                 print(f"socket error on socket.send(): {e.args[::-1]}")
