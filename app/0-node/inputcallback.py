@@ -46,7 +46,7 @@ def input_callback(inp, args) -> int:
         addr = inp[9:len(inp)].split(":")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 1
-        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]))
+        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
         return 0
 
     elif inp[:7] == "dcnode:":

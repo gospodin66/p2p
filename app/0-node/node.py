@@ -76,7 +76,7 @@ class Node:
     #
     # connect to peer
     #
-    def connect_to_node(self, ip: str, port: int) -> int:
+    def connect_to_node(self, ip: str, port: int, c: node_fnc._Const) -> int:
         # current_node_index
         c_i = -1
 
@@ -105,7 +105,10 @@ class Node:
             conn_socket["socket"].connect((conn_socket["ip"], conn_socket["port"]))
             self._tcp_connections.append(conn_socket)
             self.send_list(target=conn_socket["socket"])
-            print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
+            out = f"new connection >>> {conn_socket['ip']}:{conn_socket['port']}"
+            node_fnc.write_log(out, c)
+            print(f"{t} :: {out}")
+
         except socket.error as e:
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
@@ -147,10 +150,8 @@ class Node:
             if len(data) == 0:
                 return True
         except ConnectionResetError:
-            print("socket was closed for some other reason..")
             return True
         except BlockingIOError:
-            print("socket is open and reading from it would block..")
             return False
         except socket.error as e:
             # 107 => "Transport endpoint is not connected" => socket normally closed
@@ -202,7 +203,7 @@ class Node:
     #
     # connect to all new peers in list | send new peer list to input thread
     #
-    def loop_connect_nodes(self, json_list: list, q: queue.Queue) -> None:
+    def loop_connect_nodes(self, json_list: list, q: queue.Queue, c: node_fnc._Const) -> None:
         for node in range(len(json_list)):
             already_connected = False
             # not connecting to self
@@ -220,7 +221,7 @@ class Node:
             if already_connected:
                 continue
 
-            self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+            self.connect_to_node(ip=json_list[node]["ip"], port=json_list[node]["port"], c=c)
             
         q.put_nowait(self._tcp_connections)
 
@@ -255,10 +256,7 @@ class Node:
                         return inc_conn_res
                     continue
 
-                if self.is_socket_closed(s):
-                    
-                    # TODO: LOG >>> print(f"socket closed! removing..")
-                    
+                if self.is_socket_closed(s=s):
                     self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                     continue
 
@@ -287,7 +285,7 @@ class Node:
                 if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
                     json_list.pop(0)
                     # connect to nodes in peer list
-                    self.loop_connect_nodes(json_list, q)
+                    self.loop_connect_nodes(json_list=json_list, q=q, c=c)
                     continue
 
                 if isinstance(inc_data, bytes):
@@ -373,7 +371,9 @@ class Node:
             if self._tcp_connections[node]["socket"] == s:
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+                out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
+                node_fnc.write_log(out, c)
+                print(f"{t} :: {out}")
                 del self._tcp_connections[node]
                 break
         q.put_nowait(self._tcp_connections)
@@ -435,10 +435,14 @@ class Node:
     #
     #
     def broadcast_msg(self, msg: bytes, q: queue.Queue, c: node_fnc._Const) -> int:
+
+        out = f"broadcasting >>> {msg}"
+
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
                 continue
             try:
+                node_fnc.write_log(out, c)
                 self._tcp_connections[node]["socket"].send(msg)
             except socket.error as e:
                 print(f"socket error on socket.send(): {e.args[::-1]}")

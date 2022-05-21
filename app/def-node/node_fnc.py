@@ -1,5 +1,6 @@
 import socket
 import base64
+import logging
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
@@ -7,7 +8,8 @@ class _Const:
     BUFFER_SIZE = 1024
     MAX_CONNECTIONS = 20
     TIME_FORMAT = "%Y-%m-%d %I:%M:%S %p"
-
+    LOG_FORMAT = '%(asctime)s --- %(message)s'
+    LOG_FILE_PATH = './log.txt'
 
 def isbase64(s: str) -> bool:
     try:
@@ -46,3 +48,11 @@ def validate_ip_port(ip: str, port: int) -> int:
         print("port number not in range.")
         return 1
     return 0
+
+
+def write_log(msg: str, c: _Const) -> None:
+    logging.basicConfig(format=c.LOG_FORMAT, filename=c.LOG_FILE_PATH, filemode='a', level=logging.INFO)
+    logger = logging.getLogger('node')
+    logger.info('%s', msg)
+    # logger.warning('Protocol problem: %s', msg, extra=d)
+
