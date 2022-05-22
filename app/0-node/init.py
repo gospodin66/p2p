@@ -15,7 +15,6 @@ def main():
     _argc = len(sys.argv)
     # ip:port provided
     if _argc == 2:
-
         host = sys.argv[1].split(':')
         ip, port = (str(host[0]), int(host[1]))
         if node_fnc.validate_ip_port(ip, port) != 0:

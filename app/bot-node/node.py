@@ -86,22 +86,16 @@ class Node:
     # connect to peer
     #
     def connect_to_node(self, ip: str, port: int) -> int:
-        # current_node_index
-        c_i = -1
-
-        # get current socket in tcp_connections list
         for i in range(len(self._tcp_connections)):
             if ip == self._tcp_connections[i]["ip"] and port == self._tcp_connections[i]["port"]:
-                c_i = i
+                conn_socket = {
+                    "id": self._tcp_connections[i]["id"],
+                    "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+                    "ip": ip,
+                    "port": int(port),
+                    "type": "OUT"
+                }
                 break
-
-        conn_socket = {
-            "id": self._tcp_connections[c_i]["id"] if c_i >= 0 else str(random.randint(10000000, 99999999)),
-            "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-            "ip": str(ip),
-            "port": int(port),
-            "type": "OUT"
-        }
 
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
 
@@ -117,9 +111,6 @@ class Node:
             print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
 
         except socket.error as e:
-            
-            # TODO: Connection refused: check if firewall?
-
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
         except Exception as e:
@@ -192,17 +183,16 @@ class Node:
             print(f"unexpected error on socket.accept(): {e.args[::-1]}")
             return -1
         
-        # TODO: create node socket pair: send MASTER id as OUT => recv OUT here and assign to INC
-        #       temp id: random.randint(10000000, 99999999)
-        #       sending id immediately when connected causes input() exception
-
-        self._tcp_connections.append({
-            "id": str(random.randint(10000000, 99999999)),
-            "socket": sock,
-            "ip": str(addr[0]),
-            "port": int(addr[1]),
-            "type": "INC"
-        })
+        for i in range(len(self._tcp_connections)):
+            if self._tcp_connections[i]["ip"] == addr[0]:
+                self._tcp_connections.append({
+                    "id": self._tcp_connections[i]["id"],
+                    "socket": sock,
+                    "ip": addr[0],
+                    "port": int(addr[1]),
+                    "type": "INC"
+                })
+                break
 
         stream_in.append(sock)
 
