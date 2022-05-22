@@ -188,16 +188,19 @@ class Node:
             print(f"unexpected error on socket.accept(): {e.args[::-1]}")
             return -1
         
-        for i in range(len(self._tcp_connections)):
-            if self._tcp_connections[i]["ip"] == addr[0]:
-                self._tcp_connections.append({
-                    "id": self._tcp_connections[i]["id"],
-                    "socket": sock,
-                    "ip": addr[0],
-                    "port": int(addr[1]),
-                    "type": "INC"
-                })
-                break
+        target = {
+            "id": self._tcp_connections[i]["id"] \
+                for i in range(len(self._tcp_connections)) \
+                if addr[0] == self._tcp_connections[i]["ip"]
+        }
+
+        self._tcp_connections.append({
+            "id": target["id"] if target else str(random.randint(10000000, 99999999)),
+            "socket": sock,
+            "ip": addr[0],
+            "port": int(addr[1]),
+            "type": "INC"
+        })
 
         stream_in.append(sock)
 

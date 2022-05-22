@@ -9,7 +9,7 @@ class _Const:
     MAX_CONNECTIONS = 20
     TIME_FORMAT = "%Y-%m-%d %I:%M:%S %p"
     LOG_FORMAT = '%(asctime)s --- %(message)s'
-    LOG_FILE_PATH = './log.txt'
+    LOG_FILE_PATH = './def-node-log.txt'
 
 def isbase64(s: str) -> bool:
     try:
