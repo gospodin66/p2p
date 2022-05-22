@@ -34,5 +34,5 @@ done
 exit 0
 
 # cmdtonode:172.17.0.2:45666|curl -L https://google.com
-# kubectl exec -it p2p-bot-node-5d8f7767cf-psncc -- bash -c 'python3 /p2p/bot-node.py `hostname -I`:45666 172.17.0.13:45666'
+# kubectl exec p2p-bot-node-78b8d965c4-6gfzl -- bash -c 'python3 /p2p/node.py `hostname -I`:45666 172.17.0.12:45666'
 

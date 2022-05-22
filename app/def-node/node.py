@@ -83,17 +83,19 @@ class Node:
     # connect to peer
     #
     def connect_to_node(self, ip: str, port: int, c: node_fnc._Const) -> int:
-        # get current socket in tcp_connections list
-        for i in range(len(self._tcp_connections)):
-            if ip == self._tcp_connections[i]["ip"] and port == self._tcp_connections[i]["port"]:
-                conn_socket = {
-                    "id": self._tcp_connections[i]["id"],
-                    "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-                    "ip": ip,
-                    "port": int(port),
-                    "type": "OUT"
-                }
-                break
+        target = {
+            "id": self._tcp_connections[i]["id"] \
+                    for i in range(len(self._tcp_connections)) \
+                    if ip == self._tcp_connections[i]["ip"] and port == self._tcp_connections[i]["port"]
+        }
+
+        conn_socket = {
+            "id": target["id"] if target else str(random.randint(10000000, 99999999)),
+            "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+            "ip": ip,
+            "port": int(port),
+            "type": "OUT"
+        }
 
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
 
