@@ -62,7 +62,7 @@ def input_callback(inp, args) -> int:
         msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 1
-        n.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c)
+        n.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c, q=q)
         return 0
 
     elif inp[:10] == "cmdtonode:":
@@ -70,13 +70,13 @@ def input_callback(inp, args) -> int:
         cmd = inp[inp.index("|", 10, len(inp)):].lstrip("|")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 1
-        n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c)
+        n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c, q=q)
         return 0
 
     elif inp[:6] == "bccmd:":
         print(f">>> broadcasting command [{inp[6:]}]")
         cmd = str("inccmd:" + inp[6:]).encode()
-        n.broadcast_msg(msg=cmd, q=q, c=c)
+        n.broadcast_msg(msg=cmd, c=c, q=q)
         return 0
 
     elif inp == "exit:":
@@ -86,6 +86,6 @@ def input_callback(inp, args) -> int:
         # default
         out = inp.encode()
 
-    n.broadcast_msg(msg=out, q=q, c=c)
+    n.broadcast_msg(msg=out, c=c, q=q)
 
     return 0
