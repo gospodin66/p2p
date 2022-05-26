@@ -73,7 +73,11 @@ def main():
         print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
         n.connect_to_node(ip=ip_0, port=port_0, c=c)
 
-    ret = n.handle_connections(q, c)
+        while True:    
+            ret = n.handle_connections(q=q, c=c)
+            if ret != 0:
+                print(">>> breaking handle connections loop")
+                break
 
     if ret == 0:
         print(f"exited normally with [{ret}]")

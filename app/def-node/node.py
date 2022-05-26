@@ -248,6 +248,9 @@ class Node:
                     return 1
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
+            except ValueError as e:
+                print("ValueError: FD -1 -- node disconnected")
+                return 0
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1
@@ -269,12 +272,12 @@ class Node:
                             if self._tcp_connections[node]["socket"] == s
                 }
 
-                if self.is_socket_closed(s):
+                if self.is_socket_closed(inc['node']['socket']):
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                     continue
 
                 try:
-                    inc_data = s.recv(c.BUFFER_SIZE)
+                    inc_data = inc['node']['socket'].recv(c.BUFFER_SIZE)
                 except socket.error as e:
                     print(f"socket error on recv(): {e.args[::-1]}")
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
@@ -292,6 +295,7 @@ class Node:
                     json_list = []
 
                 # new_list as flag
+                # -- not isinstance(json_list, int) => int counts as valid json
                 if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
                     json_list.pop(0)
                     # connect to nodes in peer list
@@ -434,9 +438,9 @@ class Node:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["socket"] == s:
-                
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
+
                 out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
 
                 node_fnc.write_log(out, c)
