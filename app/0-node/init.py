@@ -58,7 +58,11 @@ def main():
 
     print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
-    ret = n.handle_connections(q, c)
+    while True:    
+        ret = n.handle_connections(q, c)
+        if ret != 0:
+            print(">>> breaking handle connections loop")
+            break
 
     if ret == 0:
         print(f"exited normally with [{ret}]")
