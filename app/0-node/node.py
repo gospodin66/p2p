@@ -165,7 +165,7 @@ class Node:
     #
     # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
-    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c = node_fnc._Const) -> int:
+    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c: node_fnc._Const) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -198,7 +198,13 @@ class Node:
         q.put_nowait(self._tcp_connections)
 
         t = time.strftime(c.TIME_FORMAT, time.localtime())
-        print(f"{t} :: new connection <<< {addr[0]}:{addr[1]}")
+
+        out = f"new connection <<< {addr[0]}:{addr[1]}"
+        node_fnc.write_log(out, c)
+
+        print(f"{t} :: {out}")
+
+
         return 0
 
 

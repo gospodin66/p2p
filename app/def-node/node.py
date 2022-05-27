@@ -201,9 +201,10 @@ class Node:
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
 
+        t = time.strftime(c.TIME_FORMAT, time.localtime())
+        
         out = f"new connection <<< {addr[0]}:{addr[1]}"
         node_fnc.write_log(out, c)
-        t = time.strftime(c.TIME_FORMAT, time.localtime())
         
         print(f"{t} :: {out}")
         return 0
