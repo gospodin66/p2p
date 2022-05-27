@@ -58,12 +58,10 @@ class Node:
 
     def set___list(self, newlist: list) -> None:
         self.__list = newlist
-        return
 
 
     def set_connections(self, connections: list):
         self._tcp_connections = connections
-        return
 
 
     #
@@ -102,19 +100,13 @@ class Node:
 
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
 
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
+                print(f"{t} :: node {conn_socket['ip']}:{conn_socket['port']} is already connected.")
+                return 1
+        
         try:
-            for node in range(len(self._tcp_connections)):
-                if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
-                    print(f"{t} :: node {conn_socket['ip']}:{conn_socket['port']} is already connected.")
-                    return 1
-
             conn_socket["socket"].connect((conn_socket["ip"], conn_socket["port"]))
-
-            self._tcp_connections.append(conn_socket)
-            self.send_list(target=conn_socket["socket"])
-
-            print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
-
         except socket.error as e:
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
@@ -122,6 +114,10 @@ class Node:
             print(f"unexpected error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
 
+        self._tcp_connections.append(conn_socket)
+        self.send_list(target=conn_socket["socket"])
+
+        print(f"{t} :: new connection >>> {conn_socket['ip']}:{conn_socket['port']}")
         return 0
 
 
@@ -244,6 +240,8 @@ class Node:
                     return 1
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
+            except ValueError as e:
+                print("ValueError: FD -1 -- node disconnected unexpectedly")
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1
@@ -258,25 +256,32 @@ class Node:
                         return inc_conn_res
                     continue
 
+                inc = {
+                    "node": self._tcp_connections[node] \
+                            for node in range(len(self._tcp_connections)) \
+                            if self._tcp_connections[node]["socket"] == s
+                }
+
+                if not inc:
+                    print(">>> node not found?")
+                    return 0
+
                 if self.is_socket_closed(s):
                     print(f"socket closed! removing..")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.dc_node(ip=inc['node']['ip'], c=c)
                     continue
 
                 try:
                     inc_data = s.recv(c.BUFFER_SIZE)
                 except socket.error as e:
                     print(f"socket error on recv(): {e.args[::-1]}")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.dc_node(ip=inc['node']['ip'], c=c)
                     continue
 
                 if not inc_data:
                     print("empty packet!")
-                    self.close_socket(s=s, ssi=stream_in, c=c)
+                    self.dc_node(ip=inc['node']['ip'], c=c)
                     continue
-
-                # if inc data is not empty => connection alive
-                ip, port = s.getpeername()
 
                 # test if json type => inc new peers list
                 try:
@@ -296,17 +301,17 @@ class Node:
 
                 if inc_data:
                     if inc_data == "exit:":
-                        self.close_socket(s=s, ssi=stream_in, c=c)
+                        self.dc_node(ip=inc['node']['ip'], c=c)
                         break
                     elif inc_data[:7] == "inccmd:":
                         cmd = inc_data[7:]
                         print(f">>> incomming command sequence [{cmd}]")
                         # port is not needed as target is searched based upon same IP and "OUT" socket type => node socket pair
-                        self.exec_cmd(cmd=cmd, ip=ip, c=c)
+                        self.exec_cmd(cmd=cmd, ip=inc['node']['ip'], c=c)
                         continue
                 
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
-                    print(f"{t} :: [{ip}:{port}] :: {inc_data}")
+                    print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {inc_data}")
 
         return 0
 
@@ -349,15 +354,54 @@ class Node:
             
         except socket.error as e:
             print(f"socket error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], c=c)
+            self.dc_node(ip=target['node']['ip'], c=c)
             return 1
         except Exception as e:
             print(f"unexpected error on cmd-ret socket.send(): {e.args[::-1]}")
-            self.close_socket(s=target["node"]["socket"], ssi=[], c=c)
+            self.dc_node(ip=target['node']['ip'], c=c)
             return 1
         
         print(f">>> command sequence executed and output sent back to node: {target['node']['ip']}:{target['node']['port']}")
         return 0
+
+
+
+    #
+    # disconnect both node sockets
+    #
+    def dc_node(self, ip: str, c: _Const) -> None:
+        inc_type_port, out_type_port = (0, 0)
+        operation_success=False
+        # close "OUT" socket
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == ip:
+                if self._tcp_connections[node]["type"] == "OUT":
+                    out_type_port = int(self._tcp_connections[node]["port"])
+
+                if self._tcp_connections[node]["ip"] == ip and \
+                (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) and \
+                self._tcp_connections[node]["type"] == "OUT":
+                    self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], c=c)
+                    break
+        # close "INC" socket
+        for node in range(len(self._tcp_connections)):
+            if self._tcp_connections[node]["ip"] == ip:
+                # get "INC" socket port
+                if self._tcp_connections[node]["type"] == "INC":
+                    inc_type_port = int(self._tcp_connections[node]["port"])
+
+                if self._tcp_connections[node]["ip"] == ip and \
+                (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) and \
+                self._tcp_connections[node]["type"] == "INC":
+                    self.close_socket(s=self._tcp_connections[node]["socket"], ssi=[], c=c)
+                    operation_success=True
+                    break
+
+        if operation_success:
+            print(f">>> sockets closed successfuly for ip [{ip}].")
+        else:
+            print(f">>> error! sockets not closed for ip [{ip}].")
+
 
 
     #
@@ -497,7 +541,11 @@ def main():
             print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
             n.connect_to_node(ip=ip_0, port=port_0)
 
-    ret = n.handle_connections(c)
+    while True:    
+        ret = n.handle_connections(c=c)
+        if ret != 0:
+            print(">>> breaking handle connections loop")
+            break
 
     if ret == 0:
         print(f"exited normally with [{ret}]")

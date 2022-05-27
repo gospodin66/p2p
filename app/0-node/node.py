@@ -252,7 +252,7 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected")
+                print("ValueError: FD -1 -- node disconnected unexpectedly")
                 return 0
             except Exception as e:
                 if self._EXIT_ON_CMD:
@@ -273,6 +273,10 @@ class Node:
                             for node in range(len(self._tcp_connections)) \
                             if self._tcp_connections[node]["socket"] == s
                 }
+
+                if not inc:
+                    print(">>> node not found?")
+                    continue
 
                 # if client disconnects unexpectedly
                 if self.is_socket_closed(s=inc['node']['socket']):
@@ -333,7 +337,7 @@ class Node:
 
 
     #
-    # disconnect node by command
+    # disconnect both node sockets
     #
     def dc_node(self, ip: str, q: queue.Queue, c: node_fnc._Const) -> None:
         inc_type_port, out_type_port = (0, 0)
