@@ -202,7 +202,7 @@ class Node:
         q.put_nowait(self._tcp_connections)
 
         t = time.strftime(c.TIME_FORMAT, time.localtime())
-        
+
         out = f"new connection <<< {addr[0]}:{addr[1]}"
         node_fnc.write_log(out, c)
         
@@ -250,8 +250,11 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected unexpectedly")
-                return 0
+                print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
+                for s in stream_in:
+                    if s.fileno() == -1:
+                        stream_in.remove(s)
+                        continue  
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1

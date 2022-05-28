@@ -244,6 +244,8 @@ class Node:
     #
     # handle recv from stream_select
     #
+    # saved_stream_in => list of sockets
+    #
     def handle_connections(self, q: queue.Queue, c: node_fnc._Const) -> int:
 
         stream_in = [ self._socket["socket"] ]
@@ -258,8 +260,11 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected unexpectedly")
-                return 0
+                print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
+                for s in stream_in:
+                    if s.fileno() == -1:
+                        stream_in.remove(s)
+                        continue                
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1

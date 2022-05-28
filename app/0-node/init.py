@@ -58,7 +58,7 @@ def main():
 
     print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
-    while True:    
+    while True:
         ret = n.handle_connections(q, c)
         if ret != 0:
             print(">>> breaking handle connections loop")
