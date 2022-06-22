@@ -15,7 +15,11 @@ def main():
         host = sys.argv[1].split(':')
 
         if len(host) == 2:
+            # specified host
             ip, port = (str(host[0]), int(host[1]))
+        elif len(host) == 1:
+            # default host
+            ip, port = (str(socket.gethostbyname(socket.gethostname())), int(host[0]))
         else:
             print(f"invalid host (ip:port): {host}")
             exit(1)
@@ -73,11 +77,11 @@ def main():
         print(f">>> connecting to node-0 [{ip_0}:{port_0}]")
         n.connect_to_node(ip=ip_0, port=port_0, c=c)
 
-        while True:    
-            ret = n.handle_connections(q=q, c=c)
-            if ret != 0:
-                print(">>> breaking handle connections loop")
-                break
+    while True:    
+        ret = n.handle_connections(q=q, c=c)
+        if ret != 0:
+            print(">>> breaking handle connections loop")
+            break
 
     if ret == 0:
         print(f"exited normally with [{ret}]")

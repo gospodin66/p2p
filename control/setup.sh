@@ -28,9 +28,19 @@ else
     printf '%s\n\n' "--- done ---"
 fi
 
-printf '%s\n' "--- deploying.."
-DEPLOYMENT_PATH=$(find node-deployment.yaml ${PROJECTS_PATH} -name "node-deployment.yaml" -type f 2>/dev/null)
+printf '%s\n' "--- deploying 0.."
+NODE_0_DEPLOYMENT_PATH=$(find node-0.yaml ${PROJECTS_PATH} -name "node-0.yaml" -type f 2>/dev/null)
+if ! kubectl apply -f "$NODE_0_DEPLOYMENT_PATH"
+then
+    printf '%s\n\n' "--- error deploying node-0 ---"
+    exit 1
+else
+    printf '%s\n\n' "--- done ---"
+    sleep 5
+fi
 
+printf '%s\n' "--- deploying nodes.."
+DEPLOYMENT_PATH=$(find node-deployment.yaml ${PROJECTS_PATH} -name "node-deployment.yaml" -type f 2>/dev/null)
 if ! kubectl apply -f "$DEPLOYMENT_PATH"
 then
     printf '%s\n\n' "--- error deploying nodes ---"

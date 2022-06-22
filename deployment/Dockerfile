@@ -10,3 +10,5 @@ COPY ./app/def-node/init.py /p2p/init.py
 COPY ./app/def-node/node.py /p2p/node.py
 
 RUN chmod 0700 /p2p/inputthread.py /p2p/init.py /p2p/inputcallback.py /p2p/node_fnc.py /p2p/init.py
+
+ENTRYPOINT ["python3", "/p2p/init.py", "45666", "p2p-0-node-connector:45555"]

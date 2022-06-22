@@ -500,7 +500,11 @@ def main():
         host = sys.argv[1].split(':')
 
         if len(host) == 2:
+            # specified host
             ip, port = (str(host[0]), int(host[1]))
+        elif len(host) == 1:
+            # default host
+            ip, port = (str(socket.gethostbyname(socket.gethostname())), int(host[0]))
         else:
             print(f"invalid host (ip:port): {host}")
             exit(1)

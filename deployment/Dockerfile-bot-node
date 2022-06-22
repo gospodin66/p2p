@@ -6,3 +6,5 @@ RUN mkdir -m 0700 /p2p/
 COPY ./app/bot-node/node.py /p2p/node.py
 
 RUN chmod 0700 /p2p/node.py
+
+ENTRYPOINT ["python3", "/p2p/node.py", "45666", "p2p-0-node-connector:45555"]

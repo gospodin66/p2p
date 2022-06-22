@@ -82,7 +82,8 @@ metadata:
   namespace: p2p
   name: p2pnode-connector
 spec:
-  clusterIP: None
+  # clusterIP: None
+  type: NodePort
   selector:
     app: p2pnode
   ports:
@@ -96,37 +97,14 @@ metadata:
   namespace: p2p
   name: p2p-bot-node-connector
 spec:
-  clusterIP: None
+  # clusterIP: None
+  type: NodePort
   selector:
     app: p2p-bot-node
   ports:
     - protocol: TCP
       port: 45667
       targetPort: 45666
----
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    app: p2pnode
-  namespace: p2p
-  name: node-0
-spec:
-  containers:
-  - name: node-0
-    image: 192.168.49.1:5000/p2p-0-node:1.0
-    tty: true
-    stdin: true
-    ports:
-    - containerPort: 45666
-    imagePullPolicy: IfNotPresent
-    resources:
-      limits:
-        cpu: 50m
-        memory: 200Mi
-      requests:
-        cpu: 20m
-        memory: 100Mi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
