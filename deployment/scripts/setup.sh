@@ -28,10 +28,14 @@ else
     printf '%s\n\n' "--- done ---"
 fi
 
+kubectl create namespace p2p
 
 printf '%s\n\n' "--- installing chart ---"
+cd /home/cheki/projects/p2p/deployment/scripts
 helm install p2p-net -f ../p2p-net/values.yaml ../p2p-net
 printf '%s\n\n' "--- done ---"
+
+
 
 
 

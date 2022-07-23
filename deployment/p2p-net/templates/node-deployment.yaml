@@ -1,7 +1,12 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.namespace }}
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: {{ .Values.namespace }}
+#   labels:
+#     app.kubernetes.io/managed-by: "Helm"
+#   annotations:
+#     meta.helm.sh/release-name: "p2p-net"
+#     meta.helm.sh/release-namespace: "p2p"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,6 +15,10 @@ metadata:
   name: {{ .Values.defNodeName }}
   labels:
     app: {{ .Values.defNodeApp }}
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
 spec:
   replicas: 3
   selector:
@@ -35,13 +44,6 @@ spec:
           requests:
             cpu: 20m
             memory: 100Mi
-        volumeMounts:
-        - name: p2p-data
-          mountPath: /p2p-data/
-      volumes:
-        - name: p2p-data
-          persistentVolumeClaim:
-            claimName: p2pnode-pvc
 
 
 ---
@@ -52,6 +54,10 @@ metadata:
   name: {{ .Values.botNodeName }}
   labels:
     app: {{ .Values.botNodeApp }}
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
 spec:
   replicas: 3
   selector:
@@ -81,10 +87,65 @@ spec:
 
 ---
 apiVersion: v1
+kind: Pod
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.node0Name }}
+  labels:
+    app: {{ .Values.node0App }}
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
+spec:
+  containers:
+  - name: node-0
+    image: {{ .Values.node0Image }}
+    tty: true
+    stdin: true
+    ports:
+    - containerPort: {{ .Values.node0ContainerPort }}
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 50m
+        memory: 200Mi
+      requests:
+        cpu: 20m
+        memory: 100Mi
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.node0ServiceName }}
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Values.node0Name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.node0ServicePort }}
+      targetPort: {{ .Values.node0ContainerPort }}
+
+---
+apiVersion: v1
 kind: Service
 metadata:
   namespace: {{ .Values.namespace }}
   name: {{ .Values.defNodeServiceName }}
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
 spec:
   # clusterIP: None
   type: NodePort
@@ -102,6 +163,11 @@ kind: Service
 metadata:
   namespace: {{ .Values.namespace }}
   name: {{ .Values.botNodeServiceName }}
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    meta.helm.sh/release-name: "p2p-net"
+    meta.helm.sh/release-namespace: "p2p"
 spec:
   # clusterIP: None
   type: NodePort
@@ -111,20 +177,3 @@ spec:
     - protocol: TCP
       port: {{ .Values.botNodeContainerPort }}
       targetPort: {{ .Values.botNodeServicePort }}
-
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  namespace: p2p
-  name: p2pnode-pvc
-  labels:
-    app: p2pnode
-spec:
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 1Gi
