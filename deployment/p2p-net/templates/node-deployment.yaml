@@ -1,32 +1,32 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: p2p
+  name: {{ .Values.namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: p2p
-  name: p2pnode
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.defNodeName }}
   labels:
-    app: p2pnode
+    app: {{ .Values.defNodeApp }}
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: p2pnode
+      app: {{ .Values.defNodeApp }}
   template:
     metadata:
       labels:
-        app: p2pnode
+        app: {{ .Values.defNodeApp }}
     spec:
       containers:
-      - name: p2pnode
-        image: 192.168.49.1:5000/p2p-def-node:1.0
+      - name: {{ .Values.defNodeApp }}
+        image: {{ .Values.defNodeImage }}
         tty: true
         stdin: true
         ports:
-        - containerPort: 45666
+        - containerPort: {{ .Values.defNodeContainerPort }}
         imagePullPolicy: IfNotPresent
         resources:
           limits:
@@ -42,31 +42,33 @@ spec:
         - name: p2p-data
           persistentVolumeClaim:
             claimName: p2pnode-pvc
+
+
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: p2p
-  name: p2p-bot-node
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.botNodeName }}
   labels:
-    app: p2p-bot-node
+    app: {{ .Values.botNodeApp }}
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: p2p-bot-node
+      app: {{ .Values.botNodeApp }}
   template:
     metadata:
-      namespace: p2p
+      namespace: {{ .Values.namespace }}
       labels:
-        app: p2p-bot-node
+        app: {{ .Values.botNodeApp }}
     spec:
       containers:
-      - name: p2p-bot-node
-        image: 192.168.49.1:5000/p2p-bot-node:1.0
+      - name: {{ .Values.botNodeApp }}
+        image: {{ .Values.botNodeImage }}
         tty: true
         ports:
-        - containerPort: 45666
+        - containerPort: {{ .Values.botNodeContainerPort }}
         imagePullPolicy: IfNotPresent
         resources:
           limits:
@@ -75,36 +77,42 @@ spec:
           requests:
             cpu: 20m
             memory: 100Mi
+
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: p2p
-  name: p2pnode-connector
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.defNodeServiceName }}
 spec:
   # clusterIP: None
   type: NodePort
   selector:
-    app: p2pnode
+    app: {{ .Values.defNodeApp }}
   ports:
     - protocol: TCP
-      port: 45665
-      targetPort: 45666
+      port: {{ .Values.defNodeContainerPort }}
+      targetPort: {{ .Values.defNodeServicePort }}
+
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: p2p
-  name: p2p-bot-node-connector
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.botNodeServiceName }}
 spec:
   # clusterIP: None
   type: NodePort
   selector:
-    app: p2p-bot-node
+    app: {{ .Values.botNodeApp }}
   ports:
     - protocol: TCP
-      port: 45667
-      targetPort: 45666
+      port: {{ .Values.botNodeContainerPort }}
+      targetPort: {{ .Values.botNodeServicePort }}
+
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

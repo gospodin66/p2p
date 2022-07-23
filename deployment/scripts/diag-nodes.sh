@@ -1,8 +1,8 @@
 #!/bin/bash
 SEP=$(python3 -c "print('-' * 130)")
 
-IN_NODE=$(kubectl get po -o=name --field-selector=status.phase=Running | grep p2pnode)
-IN_BOT=$(kubectl get po -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
+IN_NODE=$(kubectl get po -o=name --field-selector=status.phase=Running | grep def-node)
+IN_BOT=$(kubectl get po -o=name --field-selector=status.phase=Running | grep bot-node)
 CMD='netstat -tlpn; netstat -tpn; ps -ef'
 
 readarray -t fields_node <<<"${IN_NODE}"

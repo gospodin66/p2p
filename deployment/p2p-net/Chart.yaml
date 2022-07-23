@@ -1,0 +1,12 @@
+apiVersion: v2
+name: p2p-net
+description: A Helm chart for Kubernetes peer-to-peer network
+
+repository: http://127.0.0.1:47778/docker-image-registry
+version: 0.1.0
+
+type: application
+
+version: 0.1.0
+
+appVersion: "1.16.0"

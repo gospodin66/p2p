@@ -1,6 +1,6 @@
 #!/bin/bash
-IN_NODE=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2pnode)
-IN_BOT=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
+IN_NODE=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep def-node)
+IN_BOT=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep bot-node)
 
 readarray -t fields_nodes <<<"$IN_NODE"
 readarray -t fields_bots <<<"$IN_BOT"

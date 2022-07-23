@@ -1,9 +1,11 @@
 #!/bin/bash
-n0ip=$(kubectl get pods -o=jsonpath="{range .items[0]}{.status.podIP}{end}")
+
 node_port=45666
+
+n0ip=$(kubectl get pods -o=jsonpath="{range .items[0]}{.status.podIP}{end}")
 n0=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0)
-nodes=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2pnode)
-bots=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
+nodes=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep def-node)
+bots=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep bot-node)
 
 readarray -t fields_nodes <<<"$nodes"
 readarray -t fields_bots <<<"$bots"

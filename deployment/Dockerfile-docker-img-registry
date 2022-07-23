@@ -1,0 +1,20 @@
+FROM httpd:2.4-alpine
+
+RUN apk update && apk add python3 strace nano net-tools curl iptables
+
+RUN mkdir -m 0700 /custom-repository/
+
+COPY ./deployment/httpd.conf /usr/local/apache2/conf/httpd.conf
+COPY ./deployment/httpd-registry.conf /usr/local/apache2/conf/extra/httpd-registry.conf
+# RUN sed -i \
+# 		-e 's/^#\(Include .*httpd-ssl.conf\)/\1/' \
+# 		-e 's/^#\(LoadModule .*mod_ssl.so\)/\1/' \
+# 		-e 's/^#\(LoadModule .*mod_socache_shmcb.so\)/\1/' \
+# 		/usr/local/apache2/conf/httpd.conf
+
+
+RUN mkdir -p /usr/local/apache2/htdocs/docker-image-registry/
+
+EXPOSE 47777 47779
+
+# ENTRYPOINT ["/usr/sbin/httpd", "-D", "FOREGROUND"]
