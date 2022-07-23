@@ -19,14 +19,11 @@ kind load docker-image p2p-def-node:1.0
 kind load docker-image p2p-bot-node:1.0
 
 
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout 172.20.0.20.key.pem -out 172.20.0.20.crt.pem -subj "/CN=172.20.0.20" 
 
 
-Error: INSTALLATION FAILED: rendered manifests contain a resource that already exists. Unable to continue with install: 
+https://127.0.0.1:47780/docker-image-registry/p2p-network-src.tar.xz
+  
 
-Namespace "p2p" in namespace "" exists and cannot be imported into the current release: invalid ownership metadata; 
-
-label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"; 
-
-annotation validation error: missing key "meta.helm.sh/release-name": must be set to "p2p-net";
-
-annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "p2p"
+https://registryadmin:registrypassword@127.0.0.1:47780/docker-image-registry/p2p-network-src.tar.xz

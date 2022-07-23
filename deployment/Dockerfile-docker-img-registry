@@ -1,20 +1,45 @@
 FROM httpd:2.4-alpine
 
-RUN apk update && apk add python3 strace nano net-tools curl iptables
+RUN apk update && apk add \
+                      python3 \
+                      strace \
+                      nano \
+                      net-tools \
+                      curl \
+                      iptables \
+                      openssl 
 
-RUN mkdir -m 0700 /custom-repository/
+RUN mkdir -p /usr/local/apache2/htdocs/docker-image-registry/
+COPY ./deployment/registry-images/p2p-network-src.tar.xz \
+      /usr/local/apache2/htdocs/docker-image-registry/
+
+RUN mkdir -p /usr/local/apache/passwd
+RUN htpasswd -bc /usr/local/apache/passwd/passwords "registryadmin" "registrypassword"
+
+RUN openssl \
+   req \
+  -x509 \
+  -newkey rsa:4096 \
+  -sha256 \
+  -days 3650 \
+  -nodes \
+  -keyout /usr/local/share/ca-certificates/docker-image-registry.key.pem \
+  -out /usr/local/share/ca-certificates/docker-image-registry.crt.pem \
+  -subj "/CN=172.21.5.50"
+
+RUN cp /usr/local/share/ca-certificates/docker-image-registry.crt.pem /usr/local/apache2/conf/server.crt
+RUN cp /usr/local/share/ca-certificates/docker-image-registry.key.pem /usr/local/apache2/conf/server.key
+RUN update-ca-certificates
 
 COPY ./deployment/httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY ./deployment/httpd-registry.conf /usr/local/apache2/conf/extra/httpd-registry.conf
-# RUN sed -i \
-# 		-e 's/^#\(Include .*httpd-ssl.conf\)/\1/' \
-# 		-e 's/^#\(LoadModule .*mod_ssl.so\)/\1/' \
-# 		-e 's/^#\(LoadModule .*mod_socache_shmcb.so\)/\1/' \
-# 		/usr/local/apache2/conf/httpd.conf
+RUN sed -i \
+		-e 's/^#\(Include .*httpd-ssl.conf\)/\1/' \
+		-e 's/^#\(LoadModule .*mod_ssl.so\)/\1/' \
+		-e 's/^#\(LoadModule .*mod_socache_shmcb.so\)/\1/' \
+		/usr/local/apache2/conf/httpd.conf
 
-
-RUN mkdir -p /usr/local/apache2/htdocs/docker-image-registry/
-
-EXPOSE 47777 47779
+    
+EXPOSE 47777 47779 443 80
 
 # ENTRYPOINT ["/usr/sbin/httpd", "-D", "FOREGROUND"]
