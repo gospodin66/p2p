@@ -20,16 +20,17 @@ printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing services ---"
 kubectl get svc -o wide
 printf '\n'
-kubectl describe svc p2pnode-connector
+kubectl describe svc p2p-0-node-connector
+kubectl describe svc p2p-def-node-connector
 kubectl describe svc p2p-bot-node-connector
 printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing running pods ---"
 kubectl get pods -o wide --field-selector=status.phase=Running
 printf '\n%s\n' "$SEP"
-printf '%s\n' "--- listing pv ---"
-kubectl get pv -o wide
-printf '\n%s\n' "$SEP"
-printf '%s\n' "--- listing pvc ---"
-kubectl get pvc -o wide
-printf '\n%s\n' "$SEP"
+# printf '%s\n' "--- listing pv ---"
+# kubectl get pv -o wide
+# printf '\n%s\n' "$SEP"
+# printf '%s\n' "--- listing pvc ---"
+# kubectl get pvc -o wide
+# printf '\n%s\n' "$SEP"
 exit 0

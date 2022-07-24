@@ -127,7 +127,8 @@ metadata:
     meta.helm.sh/release-name: "p2p-net"
     meta.helm.sh/release-namespace: "p2p"
 spec:
-  type: NodePort
+  clusterIP: None
+  # type: NodePort
   selector:
     app: {{ .Values.node0Name }}
   ports:
@@ -147,8 +148,8 @@ metadata:
     meta.helm.sh/release-name: "p2p-net"
     meta.helm.sh/release-namespace: "p2p"
 spec:
-  # clusterIP: None
-  type: NodePort
+  clusterIP: None
+  # type: NodePort
   selector:
     app: {{ .Values.defNodeApp }}
   ports:
@@ -169,8 +170,8 @@ metadata:
     meta.helm.sh/release-name: "p2p-net"
     meta.helm.sh/release-namespace: "p2p"
 spec:
-  # clusterIP: None
-  type: NodePort
+  clusterIP: None
+  # type: NodePort
   selector:
     app: {{ .Values.botNodeApp }}
   ports:

@@ -23,7 +23,16 @@ openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout 172.20.0.20.key.pem -out 172.20.0.20.crt.pem -subj "/CN=172.20.0.20" 
 
 
-https://127.0.0.1:47780/docker-image-registry/p2p-network-src.tar.xz
+curl -vvv --insecure https://127.0.0.1:47780/docker-image-registry/p2p-network-src.tar.xz
   
 
-https://registryadmin:registrypassword@127.0.0.1:47780/docker-image-registry/p2p-network-src.tar.xz
+curl -vvv --insecure -L https://registryadmin:registrypassword@127.0.0.1:47780/docker-image-registry
+
+
+connnode:10.244.0.20:45666
+connnode:10.244.0.25:45666
+connnode:10.244.0.24:45666
+connnode:10.244.0.23:45666
+connnode:10.244.0.22:45666
+connnode:10.244.0.21:45666
+
