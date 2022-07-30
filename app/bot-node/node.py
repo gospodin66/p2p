@@ -25,8 +25,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class _Const:
-    BUFFER_SIZE = 1024
-    MAX_CONNECTIONS = 20
+    BUFFER_SIZE = 4096
+    MAX_CONNECTIONS = 100
     TIME_FORMAT = "%Y-%m-%d %I:%M:%S %p"
 
 
@@ -135,11 +135,6 @@ class Node:
 
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
-
-        # set new_list flag
-        # self.__list.insert(0, {"new_list": 1})
-
-        # out = json.dumps(self.__list).encode()
 
         # convert to string with newlines
         out1 = "inc-conns:"

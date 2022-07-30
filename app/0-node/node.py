@@ -136,12 +136,6 @@ class Node:
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
 
-        # set new_list flag
-        # self.__list.insert(0, {"new_list": 1})
-
-        # dump array to json string
-        # out = json.dumps(self.__list).encode()
-
         # convert to string with newlines
         out1 = "inc-conns:"
         out2 = "\n".join(f"{peer['ip']}:{peer['port']}" for peer in self.__list)
@@ -333,19 +327,6 @@ class Node:
                     print("empty packet!")
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                     continue
-
-                # test if json type => inc new peers list
-                # try:
-                #     json_list = json.loads(inc_data)                       
-                # except Exception as e:
-                #     json_list = []
-                # # key "new_list" as flag
-                # # -- not isinstance(json_list, int) => int counts as valid json
-                # if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") == 1:
-                #     json_list.pop(0)
-                #     # connect to nodes in peer list
-                #     self.loop_connect_nodes(json_list=json_list, q=q, c=c)
-                #     continue
 
                 if isinstance(inc_data, bytes):
                     inc_data = inc_data.decode().strip()

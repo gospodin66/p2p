@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class _Const:
-    BUFFER_SIZE = 1024
-    MAX_CONNECTIONS = 20
+    BUFFER_SIZE = 4096
+    MAX_CONNECTIONS = 100
     TIME_FORMAT = "%Y-%m-%d %I:%M:%S %p"
     LOG_FORMAT = '%(asctime)s --- %(message)s'
     LOG_FILE_PATH = './0-node-log.txt'

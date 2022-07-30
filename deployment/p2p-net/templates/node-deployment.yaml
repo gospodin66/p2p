@@ -56,7 +56,7 @@ metadata:
     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 30
+  replicas: 70
   selector:
     matchLabels:
       app: {{ .Values.botNodeApp }}
