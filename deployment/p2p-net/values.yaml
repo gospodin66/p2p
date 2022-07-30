@@ -1,8 +1,5 @@
 namespace: p2p
 
-stdin: true
-tty: true
-
 limitsCpu: 50m
 limitsMemory: 200Mi
 
@@ -24,14 +21,8 @@ node0ServicePort: 45660
 node0ContainerPort: 45666
 node0ServiceName: p2p-0-node-connector
 
-defNodeApp: p2p-def-node
-defNodeImage: docker.io/library/p2p-def-node:1.0
-defNodeServicePort: 45661
-defNodeContainerPort: 45666
-defNodeServiceName: p2p-def-node-connector
-
 botNodeApp: p2p-bot-node
 botNodeImage: docker.io/library/p2p-bot-node:1.0
-botNodeServicePort: 45662
+botNodeServicePort: 45661
 botNodeContainerPort: 45666
 botNodeServiceName: p2p-bot-node-connector

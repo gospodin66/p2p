@@ -435,10 +435,12 @@ class Node:
         for c in connections:
             if c["socket"] == self._socket["socket"]:
                 continue
-            c["socket"].shutdown(socket.SHUT_RDWR)
-            c["socket"].close()
-            socket_direction_type = ">>>" if c['type'] == "OUT" else "<<<"
-            print(f"{t} :: disconnected {socket_direction_type} {c['ip']}:{c['port']}")
+            self.dc_node(c["ip"])
+            # c["socket"].shutdown(socket.SHUT_RDWR)
+            # c["socket"].close()
+            # socket_direction_type = ">>>" if c['type'] == "OUT" else "<<<"
+            print(f"{t} :: disconnected {c['ip']}:{c['port']}")
+            time.sleep(0.5)
         self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
