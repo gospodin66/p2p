@@ -19,7 +19,7 @@ kubectl get svc --namespace p2p -o wide
 *******************************************
 
 kind load docker-image p2p-0-node:1.0
-kind load docker-image p2p-def-node:1.0
+# kind load docker-image p2p-def-node:1.0
 kind load docker-image p2p-bot-node:1.0
 
 *******************************************

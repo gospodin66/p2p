@@ -224,8 +224,8 @@ class Node:
 
         for node in peers_len:
             
-            if isinstance(node, int):
-                print("skipping int?? - DEBUG: ", node)
+            if not isinstance(node, str):
+                # print("skipping int value - DEBUG: ", peer_list_arr)
                 continue
 
             node = node.strip()

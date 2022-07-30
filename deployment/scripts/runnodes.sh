@@ -4,12 +4,9 @@ node_port=45666
 namespace="p2p"
 
 n0ip=$(kubectl get pods --namespace=${NAMESPACE} -o=jsonpath="{range .items[0]}{.status.podIP}{end}")
-n0=$(kubectl get pods --namespace=${NAMESPACE} -o=name --field-selector=status.phase=Running | grep node-0)
-nodes=$(kubectl get pods --namespace=${NAMESPACE} -o=name --field-selector=status.phase=Running | grep def-node)
-bots=$(kubectl get pods --namespace=${NAMESPACE} -o=name --field-selector=status.phase=Running | grep bot-node)
+IN_BOT_NODE=$(kubectl get pods --namespace=${NAMESPACE} -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
 
-readarray -t fields_nodes <<<"$nodes"
-readarray -t fields_bots <<<"$bots"
+readarray -t fields_bots <<<"$IN_BOT_NODE"
 
 printf '%s\n' "--- running bot nodes"
 cnt=1
@@ -19,17 +16,6 @@ for node in "${fields_bots[@]}" ;do
     printf '%s\n' "--- starting bot ${cnt}: $node | $node_ip"
 
     cmdstr="python3 /p2p/node.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
-    kubectl exec $node -- bash -c "$cmdstr"
-    ((cnt++))
-done
-
-printf '%s\n' "--- running default nodes"
-for node in "${fields_nodes[@]}" ;do
-    node_ip=$(kubectl get po -o=jsonpath="{range .items[${cnt}]}{.status.podIP}{end}")
-
-    printf '%s\n' "--- starting node ${cnt}: $node | $node_ip"
-
-    cmdstr="python3 /p2p/init.py ${node_ip}:${node_port} ${n0ip}:${node_port} &"
     kubectl exec $node -- bash -c "$cmdstr"
     ((cnt++))
 done

@@ -1,46 +1,4 @@
 ###################
-# DEF NODE
-###################
-#apiVersion: apps/v1
-#kind: Deployment
-#metadata:
-#  namespace: {{ .Values.namespace }}
-#  name: {{ .Values.defNodeApp }}
-#  labels:
-#    app: {{ .Values.defNodeApp }}
-#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#  annotations:
-#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-#spec:
-#  replicas: 30
-#  selector:
-#    matchLabels:
-#      app: {{ .Values.defNodeApp }}
-#  template:
-#    metadata:
-#      labels:
-#        app: {{ .Values.defNodeApp }}
-#    spec:
-#      containers:
-#      - name: {{ .Values.defNodeApp }}
-#        image: {{ .Values.defNodeImage }}
-#        command: ["/bin/sh"]
-#        args: ["-c", "/node-entrypoint.sh"]
-#        tty: true
-#        stdin: true
-#        ports:
-#        - containerPort: {{ .Values.defNodeContainerPort }}
-#        imagePullPolicy: IfNotPresent
-#        resources:
-#          limits:
-#            cpu: {{ .Values.limitsCpu }}
-#            memory: {{ .Values.limitsMemory }}
-#          requests:
-#            cpu: {{ .Values.requestsCpu }}
-#            memory: {{ .Values.requestsMemory }}
-
-###################
 # BOT NODE
 ###################
 ---
@@ -131,26 +89,6 @@ spec:
 
 #########################################################################
 
-#---
-#apiVersion: v1
-#kind: Service
-#metadata:
-#  namespace: {{ .Values.namespace }}
-#  name: {{ .Values.defNodeServiceName }}
-#  labels:
-#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#  annotations:
-#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-#spec:
-#  type: {{ .Values.serviceType }}
-#  selector:
-#    app: {{ .Values.defNodeApp }}
-#  ports:
-#    - protocol: {{ .Values.serviceProtocol }}
-#      port: {{ .Values.defNodeContainerPort }}
-#      targetPort: {{ .Values.defNodeServicePort }}
-
 
 ---
 apiVersion: v1
@@ -192,6 +130,71 @@ spec:
     - protocol: {{ .Values.serviceProtocol }}
       port: {{ .Values.node0ServicePort }}
       targetPort: {{ .Values.node0ContainerPort }}
+
+
+
+###################
+# DEF NODE
+###################
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  namespace: {{ .Values.namespace }}
+#  name: {{ .Values.defNodeApp }}
+#  labels:
+#    app: {{ .Values.defNodeApp }}
+#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#  annotations:
+#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+#spec:
+#  replicas: 30
+#  selector:
+#    matchLabels:
+#      app: {{ .Values.defNodeApp }}
+#  template:
+#    metadata:
+#      labels:
+#        app: {{ .Values.defNodeApp }}
+#    spec:
+#      containers:
+#      - name: {{ .Values.defNodeApp }}
+#        image: {{ .Values.defNodeImage }}
+#        command: ["/bin/sh"]
+#        args: ["-c", "/node-entrypoint.sh"]
+#        tty: true
+#        stdin: true
+#        ports:
+#        - containerPort: {{ .Values.defNodeContainerPort }}
+#        imagePullPolicy: IfNotPresent
+#        resources:
+#          limits:
+#            cpu: {{ .Values.limitsCpu }}
+#            memory: {{ .Values.limitsMemory }}
+#          requests:
+#            cpu: {{ .Values.requestsCpu }}
+#            memory: {{ .Values.requestsMemory }}
+
+
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  namespace: {{ .Values.namespace }}
+#  name: {{ .Values.defNodeServiceName }}
+#  labels:
+#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#  annotations:
+#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+#spec:
+#  type: {{ .Values.serviceType }}
+#  selector:
+#    app: {{ .Values.defNodeApp }}
+#  ports:
+#    - protocol: {{ .Values.serviceProtocol }}
+#      port: {{ .Values.defNodeContainerPort }}
+#      targetPort: {{ .Values.defNodeServicePort }}
 
 
 ###################################### 

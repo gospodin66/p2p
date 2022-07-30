@@ -2,11 +2,9 @@
 
 IN_0_NODE=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node)
 IN_BOT_NODE=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-bot-node)
-IN_DEF_NODE=$(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-def-node)
 
 readarray -t fields_0_node <<<"$IN_0_NODE"
 readarray -t fields_bots <<<"$IN_BOT_NODE"
-readarray -t fields_def <<<"$IN_DEF_NODE"
 NAMESPACE="p2p"
 
 SEP=$(python3 -c "print('-' * 130)")
@@ -14,12 +12,6 @@ if [ "$1" == "full" ];
 then
     for node in "${fields_0_node[@]}" ;do
         printf '%s' "--- listing diagnostics of 0-node: $node ---"
-        printf '\n\n'
-        kubectl describe "$node"
-        printf '\n%s\n' "$SEP"
-    done
-    for node in "${fields_def[@]}" ;do
-        printf '%s' "--- listing diagnostics of def-node: $node ---"
         printf '\n\n'
         kubectl describe "$node"
         printf '\n%s\n' "$SEP"
