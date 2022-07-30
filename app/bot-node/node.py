@@ -135,9 +135,18 @@ class Node:
 
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
+
         # set new_list flag
-        self.__list.insert(0, {"new_list": 1})
-        out = json.dumps(self.__list).encode()
+        # self.__list.insert(0, {"new_list": 1})
+
+        # out = json.dumps(self.__list).encode()
+
+        # convert to string with newlines
+        out1 = "inc-conns:"
+        out2 = "\n".join(f"{peer['ip']}:{peer['port']}" for peer in self.__list)
+        
+        out = (out1 + out2).encode()
+        
         self.__list.clear()
         target.sendall(out)
 
@@ -208,20 +217,36 @@ class Node:
     #
     # connect to all new peers in list | send new peer list to input thread
     #
-    def loop_connect_nodes(self, json_list: list) -> None:
-        for node in range(len(json_list)):
+    def loop_connect_nodes(self, peer_list: str) -> None:
+
+        peer_list_arr = peer_list.split("\n")
+        peers_len = range(len(peer_list_arr))
+
+        for node in peer_list_arr:
+
+            if isinstance(node, int):
+                print("skipping int?? - DEBUG: ", node)
+                continue
+
+            node = node.strip()
+
+            ip = node[:(node.find(':'))]
+            port = int(node[(node.find(':') +1):])
+
             already_connected = False
             # not connecting to self
-            if json_list[node]["ip"] == self._socket["ip"] and json_list[node]["port"] == self._socket["port"]:
+            if ip == self._socket["ip"] \
+            and port == self._socket["port"]:
                 continue
             # not connecting to already connected
             for i in range(len(self._tcp_connections)):
-                if self._tcp_connections[i]["ip"] == json_list[node]["ip"] and self._tcp_connections[i]["port"] == json_list[node]["port"]:
+                if self._tcp_connections[i]["ip"] == ip \
+                and self._tcp_connections[i]["port"] == port:
                     already_connected = True
                     break
             if already_connected:
                 continue
-            self.connect_to_node(json_list[node]["ip"], json_list[node]["port"])
+            self.connect_to_node(ip, port)
 
 
     #
@@ -287,19 +312,6 @@ class Node:
                     self.dc_node(ip=inc['node']['ip'], c=c)
                     continue
 
-                # test if json type => inc new peers list
-                try:
-                    json_list = json.loads(inc_data)                       
-                except Exception as e:
-                    json_list = []
-
-                # new_list as flag
-                if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
-                    json_list.pop(0)
-                    # connect to nodes in peer list
-                    self.loop_connect_nodes(json_list)
-                    continue
-
                 if isinstance(inc_data, bytes):
                     inc_data = inc_data.decode().strip()
 
@@ -307,6 +319,11 @@ class Node:
                     if inc_data == "exit:":
                         self.dc_node(ip=inc['node']['ip'], c=c)
                         break
+
+                    elif inc_data[:10] == "inc-conns:":
+                        self.loop_connect_nodes(peer_list=inc_data[10:])
+                        continue
+
                     elif inc_data[:7] == "inccmd:":
                         cmd = inc_data[7:]
                         print(f">>> incomming command sequence [{cmd}]")

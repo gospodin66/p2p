@@ -95,7 +95,8 @@ class Node:
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
 
         for node in range(len(self._tcp_connections)):
-            if self._tcp_connections[node]["ip"] == conn_socket["ip"] and self._tcp_connections[node]["port"] == conn_socket["port"]:
+            if self._tcp_connections[node]["ip"] == conn_socket["ip"] \
+            and self._tcp_connections[node]["port"] == conn_socket["port"]:
                 print(f"{t} :: node {conn_socket['ip']}:{conn_socket['port']} is already connected.")
                 return 1
 
@@ -123,6 +124,7 @@ class Node:
     # send peer list to target
     #
     def send_list(self, target: socket.socket) -> None:
+        
         for i in range(len(self._tcp_connections)):
             ftd = {}
             for key, val in self._tcp_connections[i].items():
@@ -133,9 +135,19 @@ class Node:
 
         # filter nodes => send only OUT & MASTER sockets
         self.__list[:] = (node for node in self.__list if node["type"] != "INC")
+
         # set new_list flag
-        self.__list.insert(0, {"new_list": 1})
-        out = json.dumps(self.__list).encode()
+        # self.__list.insert(0, {"new_list": 1})
+
+        # dump array to json string
+        # out = json.dumps(self.__list).encode()
+
+        # convert to string with newlines
+        out1 = "inc-conns:"
+        out2 = "\n".join(f"{peer['ip']}:{peer['port']}" for peer in self.__list)
+        
+        out = (out1 + out2).encode()
+
         self.__list.clear()
         target.sendall(out)
 
@@ -211,16 +223,32 @@ class Node:
     #
     # connect to all new peers in list | send new peer list to input thread
     #
-    def loop_connect_nodes(self, json_list: list, q: queue.Queue, c: node_fnc._Const) -> None:
-        for node in range(len(json_list)):
+    def loop_connect_nodes(self, peer_list: str, q: queue.Queue, c: node_fnc._Const) -> None:
+
+        peer_list_arr = peer_list.split("\n")
+        peers_len = range(len(peer_list_arr))
+
+        for node in peers_len:
+            
+            if isinstance(node, int):
+                print("skipping int?? - DEBUG: ", node)
+                continue
+
+            node = node.strip()
+
+            ip = node[:(node.find(':'))]
+            port = int(node[(node.find(':') +1):])
+            
             already_connected = False
             # not connecting to self
-            if json_list[node]["ip"] == self._socket["ip"] and json_list[node]["port"] == self._socket["port"]:
+            if ip == self._socket["ip"] \
+            and port == self._socket["port"]:
                 continue
 
             # not connecting to already connected
             for i in range(len(self._tcp_connections)):
-                if self._tcp_connections[i]["ip"] == json_list[node]["ip"] and self._tcp_connections[i]["port"] == json_list[node]["port"]:
+                if self._tcp_connections[i]["ip"] == ip \
+                and self._tcp_connections[i]["port"] == port:
                     already_connected = True
                     break
             
@@ -228,15 +256,15 @@ class Node:
                 continue
 
             # selective connections
-            #if json_list[node]["type"] == 'OUT':
-            #    ans = input(f">>> accept connection from {json_list[node]['ip']}:{json_list[node]['port']} ??")
+            #if peer_list[node]["type"] == 'OUT':
+            #    ans = input(f">>> accept connection from {peer_list[node]['ip']}:{peer_list[node]['port']} ??")
             #    if ans and (ans == 'y' or ans == 'yes'):
-            #        self.connect_to_node(ip=json_list[node]["ip"], port=json_list[node]["port"], c=c)
+            #        self.connect_to_node(ip=peer_list[node]["ip"], port=peer_list[node]["port"], c=c)
             #    else:
-            #        print(f"skipping {json_list[node]['ip']}:{json_list[node]['port']}")
+            #        print(f"skipping {peer_list[node]['ip']}:{peer_list[node]['port']}")
             #else:
-            #    self.connect_to_node(ip=json_list[node]["ip"], port=json_list[node]["port"], c=c)
-            self.connect_to_node(ip=json_list[node]["ip"], port=json_list[node]["port"], c=c)
+            #    self.connect_to_node(ip=peer_list[node]["ip"], port=peer_list[node]["port"], c=c)
+            self.connect_to_node(ip=ip, port=port, c=c)
             
         q.put_nowait(self._tcp_connections)
 
@@ -307,18 +335,17 @@ class Node:
                     continue
 
                 # test if json type => inc new peers list
-                try:
-                    json_list = json.loads(inc_data)                       
-                except Exception as e:
-                    json_list = []
-
-                # new_list as flag
-                # -- not isinstance(json_list, int) => int counts as valid json
-                if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") != None and json_list[0]["new_list"] == 1:
-                    json_list.pop(0)
-                    # connect to nodes in peer list
-                    self.loop_connect_nodes(json_list=json_list, q=q, c=c)
-                    continue
+                # try:
+                #     json_list = json.loads(inc_data)                       
+                # except Exception as e:
+                #     json_list = []
+                # # key "new_list" as flag
+                # # -- not isinstance(json_list, int) => int counts as valid json
+                # if json_list and not isinstance(json_list, int) and json_list[0].get("new_list") == 1:
+                #     json_list.pop(0)
+                #     # connect to nodes in peer list
+                #     self.loop_connect_nodes(json_list=json_list, q=q, c=c)
+                #     continue
 
                 if isinstance(inc_data, bytes):
                     inc_data = inc_data.decode().strip()
@@ -327,6 +354,10 @@ class Node:
                     if inc_data == "exit:":
                         self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                         break
+
+                    elif inc_data[:10] == "inc-conns:":
+                        self.loop_connect_nodes(peer_list=inc_data[10:], q=q, c=c)
+                        continue
 
                     elif inc_data[:12] == "inc-ret-cmd:":
                         try:
@@ -516,3 +547,31 @@ class Node:
             self.dc_node(ip=ip, q=q, c=c)
             return 1
         return 0 
+
+
+    #
+    #
+    #
+    def conn_from_list(self, q: queue.Queue, c: node_fnc._Const) -> None:
+        ip = b''
+        ips_path = '/p2p/ips.txt'
+        try:
+            with open(ips_path, "r") as f:
+                while (ip := f.readline().rstrip()):
+
+                    if ip == self._socket['ip']:
+                        print("[!] skipping self..")
+                        continue
+
+                    port = 45666
+
+                    print(f"[!] connecting to peer {ip}:{port}")
+                    self.connect_to_node(ip=ip, port=port, c=c)
+                    q.put_nowait(self._tcp_connections)
+                    time.sleep(0.5)
+
+        except Exception as e:
+            print(f"unexpected error on file.read() in conn_from_list(): {e.args[::-1]}")
+    
+
+###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly

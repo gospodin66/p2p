@@ -82,4 +82,7 @@ def input_callback(inp, args) -> int:
 
     n.broadcast_msg(msg=out, c=c, q=q)
 
+    if(q.full()):
+        q.queue.clear()
+        
     return 0

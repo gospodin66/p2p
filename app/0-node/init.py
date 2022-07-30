@@ -35,7 +35,7 @@ def main():
         exit(1)
     
     n = node.Node(ip, port)
-    q = queue.Queue(20)
+    q = queue.Queue(512)
     c = node_fnc._Const()
 
     # init non-blocking input thr

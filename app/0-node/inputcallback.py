@@ -38,6 +38,10 @@ def input_callback(inp, args) -> int:
         node_fnc.display_options()
         return 0
 
+    elif inp == "listconn:":
+        n.conn_from_list(q=q, c=c)
+        return 0
+
     elif inp == "conninfo:":
         n.conninfo()
         return 0
@@ -87,5 +91,8 @@ def input_callback(inp, args) -> int:
         out = inp.encode()
 
     n.broadcast_msg(msg=out, c=c, q=q)
+    
+    if(q.full()):
+        q.queue.clear()
 
     return 0

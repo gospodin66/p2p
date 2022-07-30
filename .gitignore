@@ -3,3 +3,4 @@ assets/
 diag.txt
 control/
 deployment/registry-images/*
+app/0-node/ips.txt

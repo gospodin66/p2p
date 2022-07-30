@@ -1,65 +1,62 @@
-# apiVersion: v1
-# kind: Namespace
-# metadata:
-#   name: {{ .Values.namespace }}
-#   labels:
-#     app.kubernetes.io/managed-by: "Helm"
-#   annotations:
-#     meta.helm.sh/release-name: "p2p-net"
-#     meta.helm.sh/release-namespace: "p2p"
+###################
+# DEF NODE
+###################
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  namespace: {{ .Values.namespace }}
+#  name: {{ .Values.defNodeApp }}
+#  labels:
+#    app: {{ .Values.defNodeApp }}
+#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#  annotations:
+#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+#spec:
+#  replicas: 30
+#  selector:
+#    matchLabels:
+#      app: {{ .Values.defNodeApp }}
+#  template:
+#    metadata:
+#      labels:
+#        app: {{ .Values.defNodeApp }}
+#    spec:
+#      containers:
+#      - name: {{ .Values.defNodeApp }}
+#        image: {{ .Values.defNodeImage }}
+#        command: ["/bin/sh"]
+#        args: ["-c", "/node-entrypoint.sh"]
+#        tty: true
+#        stdin: true
+#        ports:
+#        - containerPort: {{ .Values.defNodeContainerPort }}
+#        imagePullPolicy: IfNotPresent
+#        resources:
+#          limits:
+#            cpu: {{ .Values.limitsCpu }}
+#            memory: {{ .Values.limitsMemory }}
+#          requests:
+#            cpu: {{ .Values.requestsCpu }}
+#            memory: {{ .Values.requestsMemory }}
+
+###################
+# BOT NODE
+###################
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: {{ .Values.namespace }}
-  name: {{ .Values.defNodeName }}
-  labels:
-    app: {{ .Values.defNodeApp }}
-    app.kubernetes.io/managed-by: "Helm"
-  annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: {{ .Values.defNodeApp }}
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.defNodeApp }}
-    spec:
-      containers:
-      - name: {{ .Values.defNodeApp }}
-        image: {{ .Values.defNodeImage }}
-        tty: true
-        stdin: true
-        ports:
-        - containerPort: {{ .Values.defNodeContainerPort }}
-        imagePullPolicy: IfNotPresent
-        resources:
-          limits:
-            cpu: 50m
-            memory: 200Mi
-          requests:
-            cpu: 20m
-            memory: 100Mi
-
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.botNodeName }}
+  name: {{ .Values.botNodeApp }}
   labels:
     app: {{ .Values.botNodeApp }}
-    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
   annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 3
+  replicas: 30
   selector:
     matchLabels:
       app: {{ .Values.botNodeApp }}
@@ -72,90 +69,87 @@ spec:
       containers:
       - name: {{ .Values.botNodeApp }}
         image: {{ .Values.botNodeImage }}
+        command: ["/bin/sh"]
+        args: ["-c", "/node-entrypoint.sh"]
+        stdin: true
         tty: true
         ports:
         - containerPort: {{ .Values.botNodeContainerPort }}
         imagePullPolicy: IfNotPresent
         resources:
           limits:
-            cpu: 50m
-            memory: 200Mi
+            cpu: {{ .Values.limitsCpu }}
+            memory: {{ .Values.limitsMemory }}
           requests:
-            cpu: 20m
-            memory: 100Mi
+            cpu: {{ .Values.requestsCpu }}
+            memory: {{ .Values.requestsMemory }}
 
-
+###################
+# 0 NODE
+###################
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   namespace: {{ .Values.namespace }}
-  name: {{ .Values.node0Name }}
+  name: {{ .Values.node0App }}
   labels:
     app: {{ .Values.node0App }}
-    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
   annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  containers:
-  - name: node-0
-    image: {{ .Values.node0Image }}
-    tty: true
-    stdin: true
-    ports:
-    - containerPort: {{ .Values.node0ContainerPort }}
-    imagePullPolicy: IfNotPresent
-    resources:
-      limits:
-        cpu: 50m
-        memory: 200Mi
-      requests:
-        cpu: 20m
-        memory: 100Mi
-
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.node0ServiceName }}
-  labels:
-    app.kubernetes.io/managed-by: "Helm"
-  annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
-spec:
-  clusterIP: None
-  # type: NodePort
+  replicas: 1
   selector:
-    app: {{ .Values.node0Name }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.node0ServicePort }}
-      targetPort: {{ .Values.node0ContainerPort }}
+    matchLabels:
+      app: {{ .Values.node0App }}
+  template:
+    metadata:
+      namespace: {{ .Values.namespace }}
+      labels:
+        app: {{ .Values.node0App }}
+    spec:
+      containers:
+      - name: {{ .Values.node0App }}
+        image: {{ .Values.node0Image }}
+        command: ["/bin/sh"]
+        args: ["-c", "/node-entrypoint.sh"]
+        tty: true
+        stdin: true
+        ports:
+        - containerPort: {{ .Values.node0ContainerPort }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        resources:
+          limits:
+            cpu: {{ .Values.limitsCpu }}
+            memory: {{ .Values.limitsMemory }}
+          requests:
+            cpu: {{ .Values.requestsCpu }}
+            memory: {{ .Values.requestsMemory }}
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.defNodeServiceName }}
-  labels:
-    app.kubernetes.io/managed-by: "Helm"
-  annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
-spec:
-  clusterIP: None
-  # type: NodePort
-  selector:
-    app: {{ .Values.defNodeApp }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.defNodeContainerPort }}
-      targetPort: {{ .Values.defNodeServicePort }}
+
+#########################################################################
+
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  namespace: {{ .Values.namespace }}
+#  name: {{ .Values.defNodeServiceName }}
+#  labels:
+#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#  annotations:
+#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+#spec:
+#  type: {{ .Values.serviceType }}
+#  selector:
+#    app: {{ .Values.defNodeApp }}
+#  ports:
+#    - protocol: {{ .Values.serviceProtocol }}
+#      port: {{ .Values.defNodeContainerPort }}
+#      targetPort: {{ .Values.defNodeServicePort }}
 
 
 ---
@@ -165,16 +159,68 @@ metadata:
   namespace: {{ .Values.namespace }}
   name: {{ .Values.botNodeServiceName }}
   labels:
-    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
   annotations:
-    meta.helm.sh/release-name: "p2p-net"
-    meta.helm.sh/release-namespace: "p2p"
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  clusterIP: None
-  # type: NodePort
+  type: {{ .Values.serviceType }}
   selector:
     app: {{ .Values.botNodeApp }}
   ports:
-    - protocol: TCP
+    - protocol: {{ .Values.serviceProtocol }}
       port: {{ .Values.botNodeContainerPort }}
       targetPort: {{ .Values.botNodeServicePort }}
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.node0ServiceName }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+spec:
+  type: {{ .Values.serviceType }}
+  selector:
+    app: {{ .Values.node0App }}
+  ports:
+    - protocol: {{ .Values.serviceProtocol }}
+      port: {{ .Values.node0ServicePort }}
+      targetPort: {{ .Values.node0ContainerPort }}
+
+
+###################################### 
+# POD CONFIG                         #
+# ####################################
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   namespace: {{ .Values.namespace }}
+#   name: {{ .Values.node0App }}
+#   labels:
+#     app: {{ .Values.node0App }}
+#     app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#   annotations:
+#     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+# spec:
+#   containers:
+#   - name: node-0
+#     image: {{ .Values.node0Image }}
+#     tty: true
+#     stdin: true
+#     ports:
+#     - containerPort: {{ .Values.node0ContainerPort }}
+#     imagePullPolicy: IfNotPresent
+#     resources:
+#       limits:
+#         cpu: {{ .Values.limitsCpu }}
+#         memory: {{ .Values.limitsMemory }}
+#       requests:
+#         cpu: {{ .Values.requestsCpu }}
+#         memory: {{ .Values.requestsMemory }}

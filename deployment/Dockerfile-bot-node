@@ -1,13 +1,9 @@
-FROM ubuntu:latest
+FROM python:3.10.5-alpine
 
-RUN apt update && apt install -y \
-                      python3 \
-                      strace \
-                      nano \
-                      net-tools \
-                      netcat \
-                      curl \
-                      ssh-client
+RUN apk update && apk add --no-cache \
+                          strace \
+                          nano \
+                          net-tools
                       
 RUN mkdir -m 0700 /p2p/
 
@@ -15,4 +11,7 @@ COPY ./app/bot-node/node.py /p2p/node.py
 
 RUN chmod 0700 /p2p/node.py
 
-ENTRYPOINT ["python3", "/p2p/node.py", "45666", "p2p-0-node-connector:45555"]
+COPY ./deployment/bot-node-entrypoint.sh /node-entrypoint.sh
+RUN chmod 0700 /node-entrypoint.sh
+
+# ENTRYPOINT ["python3", "/p2p/node.py", "45666", "p2p-0-node-connector:45555"]

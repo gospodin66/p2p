@@ -1,22 +1,37 @@
 namespace: p2p
 
+stdin: true
+tty: true
+
+limitsCpu: 50m
+limitsMemory: 200Mi
+
+requestsCpu: 20m
+requestsMemory: 100Mi
+
+labelManagedBy: Helm
+annotationReleaseName: p2p-net
+annotationReleaseNamespace: p2p
+
+serviceType: NodePort
+serviceProtocol: TCP
+
+imagePullPolicy: IfNotPresent
+
 node0App: p2p-0-node
-node0Name: node-0
 node0Image: docker.io/library/p2p-0-node:1.0
-node0ServicePort: 45555
+node0ServicePort: 45660
 node0ContainerPort: 45666
 node0ServiceName: p2p-0-node-connector
 
 defNodeApp: p2p-def-node
-defNodeName: def-node
 defNodeImage: docker.io/library/p2p-def-node:1.0
-defNodeServicePort: 45555
-defNodeContainerPort: 45665
+defNodeServicePort: 45661
+defNodeContainerPort: 45666
 defNodeServiceName: p2p-def-node-connector
 
 botNodeApp: p2p-bot-node
-botNodeName: bot-node
 botNodeImage: docker.io/library/p2p-bot-node:1.0
-botNodeServicePort: 45555
-botNodeContainerPort: 45667
+botNodeServicePort: 45662
+botNodeContainerPort: 45666
 botNodeServiceName: p2p-bot-node-connector
