@@ -61,7 +61,7 @@ def main():
     while True:
         ret = n.handle_connections(q, c)
         if ret != 0:
-            print(">>> breaking handle connections loop")
+            print(">>> exiting handle connections loop")
             break
 
     if ret == 0:

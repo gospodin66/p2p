@@ -261,7 +261,7 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
+                # print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
                 for s in stream_in:
                     if s.fileno() == -1:
                         stream_in.remove(s)
@@ -287,7 +287,7 @@ class Node:
                 }
 
                 if not inc:
-                    print(">>> node not found?")
+                    # print(">>> node not found?")
                     return 0
 
                 if self.is_socket_closed(s):
@@ -454,17 +454,75 @@ class Node:
     def close_master_socket(self) -> None:
         connections = self._tcp_connections
         t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
-        for c in connections:
-            if c["socket"] == self._socket["socket"]:
-                continue
-            c["socket"].shutdown(socket.SHUT_RDWR)
-            c["socket"].close()
-            socket_direction_type = ">>>" if c['type'] == "OUT" else "<<<"
-            print(f"{t} :: disconnected {socket_direction_type} {c['ip']}:{c['port']}")
+        self.loop_close_all_sockets()
         self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
         print("disconnected all clients..\nmaster socket closed!")
+
+
+
+    #
+    #
+    #
+    def loop_close_all_sockets(self) -> None:
+
+        inc_type_port, out_type_port = (0, 0)
+
+        while len(self._tcp_connections) > 0:
+
+            # always grab 1st element of the list sequentially
+            tcp_conn = self._tcp_connections.pop(0)
+            ip = tcp_conn["ip"]
+            operation_success=False
+
+            # close "OUT" socket
+            for node in range(len(self._tcp_connections)):
+                if self._tcp_connections[node]["ip"] == ip:
+                    if self._tcp_connections[node]["type"] == "OUT":
+                        out_type_port = int(self._tcp_connections[node]["port"])
+
+                    if self._tcp_connections[node]["ip"] == ip and \
+                    (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) and \
+                    self._tcp_connections[node]["type"] == "OUT":
+                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
+                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
+                        print(f"{out}")
+                        try:
+                            self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
+                        except socket.error as e:
+                            pass
+                        self._tcp_connections[node]["socket"].close()
+                        del self._tcp_connections[node]
+                        break
+
+            # close "INC" socket
+            for node in range(len(self._tcp_connections)):
+                if self._tcp_connections[node]["ip"] == ip:
+                    # get "INC" socket port
+                    if self._tcp_connections[node]["type"] == "INC":
+                        inc_type_port = int(self._tcp_connections[node]["port"])
+
+                    if self._tcp_connections[node]["ip"] == ip and \
+                    (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) and \
+                    self._tcp_connections[node]["type"] == "INC":
+                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
+                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
+                        print(f"{out}")
+                        try:
+                            self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
+                        except socket.error as e:
+                            pass
+                        self._tcp_connections[node]["socket"].close()
+                        del self._tcp_connections[node]
+                        operation_success=True
+                        break
+
+            if operation_success:
+                print(f">>> sockets closed successfuly for ip [{ip}].")
+                time.sleep(0.5)
+            else:
+                print(f">>> error! sockets not closed for ip [{ip}].")
 
 
 

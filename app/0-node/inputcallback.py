@@ -1,6 +1,7 @@
 import node
 import node_fnc
 import queue
+import ipaddress
 
 # global callback for input-thread (broadcast/exec messages/commands)
 # inp  => input string | bytes
@@ -25,14 +26,13 @@ def input_callback(inp, args) -> int:
         n.set_connections(new_list)
         q.task_done()
 
-    if not inp:
+    if not inp or inp == "":
         print("--- empty input..")
-        return 1
+        return 0
 
     if inp[:9] == "sendfile:":
         print("sending file..")
         out = node_fnc.r_file(inp.split(":")[1])
-        # TODO: send & recv file as function
 
     elif inp == "getopts:":
         node_fnc.display_options()
@@ -47,17 +47,26 @@ def input_callback(inp, args) -> int:
         return 0
 
     elif inp[:9] == "connnode:":
+        if inp[9:].find(':') == -1:
+            print(f"[!] invalid ip/port: {inp[9:]}")
+            return 0
+
         addr = inp[9:len(inp)].split(":")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
+            return 0
         n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
         return 0
 
     elif inp[:7] == "dcnode:":
         addr = inp[7:len(inp)]
+        try:
+            temp = ipaddress.ip_address(inp[7:])
+        except ValueError as e:
+            print(f"[!] invalid ip address format: {inp[7:]} | {e.args[::-1]}")
+            return 0
         # 1 as dummy port argument => disconnects by ip
         if node_fnc.validate_ip_port(str(addr), 1) != 0:
-            return 1
+            return 0
         n.dc_node(ip=str(addr), q=q, c=c)
         return 0
 
@@ -65,7 +74,7 @@ def input_callback(inp, args) -> int:
         addr = inp[11:inp.index("|", 11, len(inp))].split(":")
         msg = inp[inp.index("|", 11, len(inp)):].lstrip("|")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
+            return 0
         n.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c, q=q)
         return 0
 
@@ -73,7 +82,7 @@ def input_callback(inp, args) -> int:
         addr = inp[10:inp.index("|", 10, len(inp))].split(":")
         cmd = inp[inp.index("|", 10, len(inp)):].lstrip("|")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
-            return 1
+            return 0
         n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c, q=q)
         return 0
 
@@ -92,7 +101,6 @@ def input_callback(inp, args) -> int:
 
     n.broadcast_msg(msg=out, c=c, q=q)
     
-    if(q.full()):
-        q.queue.clear()
+    q.queue.clear()
 
     return 0

@@ -14,7 +14,7 @@ metadata:
     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 90
+  replicas: 70
   selector:
     matchLabels:
       app: {{ .Values.botNodeApp }}
@@ -109,6 +109,7 @@ spec:
     - protocol: {{ .Values.serviceProtocol }}
       port: {{ .Values.botNodeContainerPort }}
       targetPort: {{ .Values.botNodeServicePort }}
+      nodePort: {{ .Values.botNodePort }}
 
 
 ---
@@ -130,6 +131,7 @@ spec:
     - protocol: {{ .Values.serviceProtocol }}
       port: {{ .Values.node0ServicePort }}
       targetPort: {{ .Values.node0ContainerPort }}
+      nodePort: {{ .Values.node0NodePort }}
 
 
 

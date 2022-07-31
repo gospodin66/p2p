@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# SERVICE_PORTS=$(kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+');
-# readarray -t fields <<<"${SERVICE_PORTS}";
-# echo "$fields[0]";
+# CLUSTER_IP='172.19.0.2'
+# NODE_0_PORT=31515
 
-#additional arg: p2p-0-node-connector:45555
+#p2p-0-node-connector = cluster_ip + node0_port
+# ${CLUSTER_IP}:${NODE_0_PORT}
 python3 /p2p/node.py 45666
