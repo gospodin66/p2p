@@ -441,8 +441,7 @@ class Node:
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
 
-                print(f"{t} :: disconnected {socket_direction_type} \
-                {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
+                print(f"{t} :: disconnected {socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}")
 
                 del self._tcp_connections[node]
                 break
@@ -482,12 +481,9 @@ class Node:
                     if self._tcp_connections[node]["type"] == "OUT":
                         out_type_port = int(self._tcp_connections[node]["port"])
 
-                    if self._tcp_connections[node]["ip"] == ip and \
-                    (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) and \
-                    self._tcp_connections[node]["type"] == "OUT":
-                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
-                        print(f"{out}")
+                    if self._tcp_connections[node]["ip"] == ip \
+                    and (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) \
+                    and self._tcp_connections[node]["type"] == "OUT":
                         try:
                             self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
                         except socket.error as e:
@@ -503,12 +499,9 @@ class Node:
                     if self._tcp_connections[node]["type"] == "INC":
                         inc_type_port = int(self._tcp_connections[node]["port"])
 
-                    if self._tcp_connections[node]["ip"] == ip and \
-                    (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) and \
-                    self._tcp_connections[node]["type"] == "INC":
-                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
-                        print(f"{out}")
+                    if self._tcp_connections[node]["ip"] == ip \
+                    and (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) \
+                    and self._tcp_connections[node]["type"] == "INC":
                         try:
                             self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
                         except socket.error as e:
@@ -523,7 +516,6 @@ class Node:
                 time.sleep(0.5)
             else:
                 print(f">>> error! sockets not closed for ip [{ip}].")
-
 
 
 #

@@ -31,6 +31,9 @@ kubectl get deploy -o wide --namespace=${NAMESPACE}
 printf '\n%s\n' "$SEP"
 printf '%s\n' "--- listing services ---"
 kubectl get svc -o wide --namespace=${NAMESPACE}
+printf '\n%s\n' "$SEP"
+printf '%s\n' "--- listing ingresses ---"
+kubectl get ingress -o wide --namespace=${NAMESPACE}
 printf '\n'
 # kubectl describe svc p2p-0-node-connector --namespace=${NAMESPACE}
 # kubectl describe svc p2p-def-node-connector --namespace=${NAMESPACE}

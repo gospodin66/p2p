@@ -7,3 +7,4 @@ app/0-node/ips.txt
 app/def-node/
 deployment/def-node-entrypoint.sh
 deployment/Dockerfile-def-node
+deployment/scripts/helm-install-nginx-ingress.sh

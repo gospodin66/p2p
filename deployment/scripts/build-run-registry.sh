@@ -14,11 +14,9 @@ docker run \
        --init \
        --rm \
        --ip 172.21.5.50 \
-       --publish 127.0.0.1:47776:47777/tcp \
-       --publish 127.0.0.1:47780:443/tcp \
-       --publish 127.0.0.1:47778:80/tcp \
-       --publish 127.0.0.1:47722:22/tcp \
-       --publish 192.168.170.1:47722:22/tcp \
+       --publish 192.168.1.61:47880:80/tcp \
+       --publish 192.168.1.61:47443:443/tcp \
+       --publish 192.168.1.61:47222:22/tcp \
        --privileged \
        --network p2p-net \
        --name p2p-image-registry \

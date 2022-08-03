@@ -54,10 +54,15 @@ kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | 
 
 kubectl exec -it $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) -- /bin/sh
 
-nmap -n -sn 10.244.0.10-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+nmap -n -sn 10.244.0.5-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
 
 kubectl attach -it $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node)
 
 # GET service ports
 
 kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+'
+
+
+curl -vvv --insecure --user registryadmin:registrypassword https://192.168.1.61:47443
+
+curl -vvv --insecure --user registryadmin:registrypassword http://192.168.1.61:47880

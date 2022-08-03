@@ -59,7 +59,9 @@ def main():
     print(f">>>\n>>> P2P Node-0 {ip}:{port}\n>>>")
 
     while True:
+        
         ret = n.handle_connections(q, c)
+
         if ret != 0:
             print(">>> exiting handle connections loop")
             break
@@ -76,4 +78,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"exiting by SIGINT..")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

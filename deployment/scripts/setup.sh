@@ -25,9 +25,7 @@ else
     printf '%s\n\n' "--- done ---"
 fi
 
-kubectl create namespace p2p
-
-
+kubectl create namespace p2p 2>/dev/null
 
 ################ HELM ###############
 

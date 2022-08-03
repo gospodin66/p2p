@@ -14,7 +14,7 @@ metadata:
     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 70
+  replicas: 60
   selector:
     matchLabels:
       app: {{ .Values.botNodeApp }}
@@ -89,7 +89,7 @@ spec:
 
 #########################################################################
 
-
+################### BOT NODE
 ---
 apiVersion: v1
 kind: Service
@@ -111,7 +111,7 @@ spec:
       targetPort: {{ .Values.botNodeServicePort }}
       nodePort: {{ .Values.botNodePort }}
 
-
+################### NODE 0
 ---
 apiVersion: v1
 kind: Service
@@ -132,6 +132,47 @@ spec:
       port: {{ .Values.node0ServicePort }}
       targetPort: {{ .Values.node0ContainerPort }}
       nodePort: {{ .Values.node0NodePort }}
+
+
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   namespace: {{ .Values.namespace }}
+#   name: p2p-http-backend
+#   annotations:
+#     kubernetes.io/ingress.class: "nginx"
+#     nginx.ingress.kubernetes.io/rewrite-target: /$1
+#     nginx.org/proxy-connect-timeout: "30s"
+#     nginx.org/proxy-read-timeout: "20s"
+#   labels:
+#     app: p2p-http-backend
+# spec:
+#   rules:
+#   - host: "p2p-http-backend.lan"
+#     http:
+#       paths:
+#         - path: /
+#           pathType: Prefix
+#           backend:
+#             service:
+#               name: {{ .Values.node0ServiceName }}
+#               port:
+#                 number: 31515
+#         - path: /p2p/0-node
+#           pathType: Prefix
+#           backend:
+#             service:
+#               name: {{ .Values.node0ServiceName }}
+#               port:
+#                 number: 31515
+#         - path: /p2p/bot-node
+#           pathType: Prefix
+#           backend:
+#             service:
+#               name: {{ .Values.botNodeServiceName }}
+#               port:
+#                 number: 31516
 
 
 

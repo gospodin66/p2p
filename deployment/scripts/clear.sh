@@ -15,23 +15,26 @@ kubectl delete svc p2p-0-node-connector \
 kubectl delete --all po --namespace=${NAMESPACE}
 printf '%s\n\n' "--- done ---"
 
-while :
-do
-    # printf '%s\n' "--- removing current image from minikube.."
-    # minikube image rm $DOCKER_IMG $DOCKER_IMG_0 $DOCKER_IMG_BOT
-    # if minikube image ls | grep "$DOCKER_IMG" || minikube image ls | grep "$DOCKER_IMG_0" || minikube image ls | grep "$DOCKER_IMG_BOT";
+# while :
+# do
+#     # printf '%s\n' "--- removing current image from minikube.."
+#     # minikube image rm $DOCKER_IMG $DOCKER_IMG_0 $DOCKER_IMG_BOT
+#     # if minikube image ls | grep "$DOCKER_IMG" || minikube image ls | grep "$DOCKER_IMG_0" || minikube image ls | grep "$DOCKER_IMG_BOT";
 
-    printf '%s\n' "--- removing current chart from kind.."
-    helm uninstall p2p-net
+#     printf '%s\n' "--- removing current chart from kind.."
+#     helm uninstall p2p-net 
 
-    if helm list | grep "p2p-net";
-    then
-        printf '%s\n' "--- waiting for conatiners to terminate.."
-        sleep 3 # wait for containers to terminate
-    else
-        break
-    fi
-done
+#     if helm list | grep "p2p-net";
+#     then
+#         printf '%s\n' "--- waiting for conatiners to terminate.."
+#         sleep 3 # wait for containers to terminate
+#     else
+#         break
+#     fi
+# done
+
+printf '%s\n' "--- removing current chart from kind.."
+helm uninstall p2p-net 
 
 printf '%s\n\n' "--- done ---"
 exit 0

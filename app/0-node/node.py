@@ -10,6 +10,7 @@
 ###                                                                 ###
 #######################################################################
 #######################################################################
+
 import socket
 import select
 import queue
@@ -20,6 +21,7 @@ import errno
 import base64
 import time
 import ipaddress
+import re
 
 class Node:
 
@@ -337,24 +339,53 @@ class Node:
                     inc_data = inc_data.decode().strip()
 
                 if inc_data:
-                    if inc_data == "exit:":
-                        self.dc_node(ip=inc['node']['ip'], q=q, c=c)
-                        break
+                    #
+                    # http (plaintext)
+                    #
+                    if re.search("^GET\s{1}/[a-z]*\s{1}HTTP/1.1", inc_data):
 
-                    elif inc_data[:10] == "inc-conns:":
-                        self.loop_connect_nodes(peer_list=inc_data[10:], q=q, c=c)
-                        continue
+                        print(f"[!] received HTTP request")
+                        
+                        out = "HTTP/1.1 200 OK\r\n" \
+                            "Server: Custom\r\n" \
+                            "Content-type: text/html\r\n" \
+                            "Connection: close\r\n\r\n" \
+                            "200\r\n"
 
-                    elif inc_data[:12] == "inc-ret-cmd:":
-                        try:
-                            inc_data = base64.b64decode(inc_data[12:]).decode()
-                            if isinstance(inc_data, bytes):
-                                inc_data = inc_data.decode()
-                        except Exception as e:
-                            print(f"unexpected error on base64-decode: {e.args[::-1]}")
+                        # HTTP response to target
+                        inc['node']['socket'].send(out.encode('utf-8'))
 
-                    elif node_fnc.isbase64(inc_data):
-                        inc_data = base64.b64decode(inc_data[12:]).decode()
+                        # close socket for response to be received and rendered at endpoint
+                        self.close_socket(s=inc['node']['socket'], ssi=[], q=q, c=c)
+                    #
+                    # tcp (bytes)
+                    #
+                    else:
+                        if inc_data == "exit:":
+                            self.dc_node(ip=inc['node']['ip'], q=q, c=c)
+                            break
+
+                        elif inc_data[:10] == "inc-conns:":
+                            self.loop_connect_nodes(peer_list=inc_data[10:], q=q, c=c)
+                            continue
+
+                        elif inc_data[:12] == "inc-ret-cmd:":
+                            try:
+                                inc_data = base64.b64decode(inc_data[12:]).decode()
+                                if isinstance(inc_data, bytes):
+                                    inc_data = inc_data.decode()
+                            except Exception as e:
+                                print(f"unexpected error on base64-decode: {e.args[::-1]}")
+
+                        elif node_fnc.isbase64(inc_data):
+                            try:
+                                inc_data = base64.b64decode(inc_data).decode()
+                                if isinstance(inc_data, bytes):
+                                    inc_data = inc_data.decode()
+                            except Exception as e:
+                                pass
+                                # print(f"unexpected error on base64-decode: {e.args[::-1]}")
+
                         if isinstance(inc_data, bytes):
                             inc_data = inc_data.decode()
 
@@ -362,7 +393,6 @@ class Node:
                     print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {inc_data}")
 
         return 0
-
 
 
     #
@@ -472,12 +502,9 @@ class Node:
                     if self._tcp_connections[node]["type"] == "OUT":
                         out_type_port = int(self._tcp_connections[node]["port"])
 
-                    if self._tcp_connections[node]["ip"] == ip and \
-                    (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) and \
-                    self._tcp_connections[node]["type"] == "OUT":
-                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
-                        print(f"{out}")
+                    if self._tcp_connections[node]["ip"] == ip \
+                    and (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) \
+                    and self._tcp_connections[node]["type"] == "OUT":
                         try:
                             self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
                         except socket.error as e:
@@ -493,12 +520,9 @@ class Node:
                     if self._tcp_connections[node]["type"] == "INC":
                         inc_type_port = int(self._tcp_connections[node]["port"])
 
-                    if self._tcp_connections[node]["ip"] == ip and \
-                    (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) and \
-                    self._tcp_connections[node]["type"] == "INC":
-                        socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
-                        out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
-                        print(f"{out}")
+                    if self._tcp_connections[node]["ip"] == ip \
+                    and (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) \
+                    and self._tcp_connections[node]["type"] == "INC":
                         try:
                             self._tcp_connections[node]["socket"].shutdown(socket.SHUT_RDWR)
                         except socket.error as e:
@@ -561,6 +585,11 @@ class Node:
                 continue
             try:
                 node_fnc.write_log(out, c)
+                #
+                # TODO: http response
+                #       curl does not accept bytes => 'HTTP/0.9 error'
+                #       use plain string
+                #
                 self._tcp_connections[node]["socket"].send(msg)
             except socket.error as e:
                 print(f"socket error on socket.send(): {e.args[::-1]}")

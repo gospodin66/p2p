@@ -25,26 +25,23 @@ def input_callback(inp, args) -> int:
         new_list = q.get_nowait()
         n.set_connections(new_list)
         q.task_done()
+        print(f"received in queue -- size {q.qsize()}")
+
 
     if not inp or inp == "":
         print("--- empty input..")
         return 0
 
-    if inp[:9] == "sendfile:":
+
+    if inp[:6] == "bccmd:":
+        print(f">>> broadcasting command [{inp[6:]}]")
+        cmd = str("inccmd:" + inp[6:]).encode()
+        n.broadcast_msg(msg=cmd, c=c, q=q)
+        return 0
+
+    elif inp[:9] == "sendfile:":
         print("sending file..")
         out = node_fnc.r_file(inp.split(":")[1])
-
-    elif inp == "getopts:":
-        node_fnc.display_options()
-        return 0
-
-    elif inp == "listconn:":
-        n.conn_from_list(q=q, c=c)
-        return 0
-
-    elif inp == "conninfo:":
-        n.conninfo()
-        return 0
 
     elif inp[:9] == "connnode:":
         if inp[9:].find(':') == -1:
@@ -86,21 +83,28 @@ def input_callback(inp, args) -> int:
         n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c, q=q)
         return 0
 
-    elif inp[:6] == "bccmd:":
-        print(f">>> broadcasting command [{inp[6:]}]")
-        cmd = str("inccmd:" + inp[6:]).encode()
-        n.broadcast_msg(msg=cmd, c=c, q=q)
+    elif inp == "getopts:":
+        node_fnc.display_options()
+        return 0
+
+    elif inp == "listconn:":
+        n.conn_from_list(q=q, c=c)
+        return 0
+
+    elif inp == "conninfo:":
+        n.conninfo()
         return 0
 
     elif inp == "exit:":
         return exit_from_cmd(n)
 
+    # default
     else:
-        # default
         out = inp.encode()
 
     n.broadcast_msg(msg=out, c=c, q=q)
     
     q.queue.clear()
+    print(f"cleared queue -- size: {q.qsize()}")
 
     return 0

@@ -22,25 +22,16 @@ class InputThread(threading.Thread):
                 inp = input()
                 if inp:
                     if self.input_callback(inp=inp, args=self.args) == 1:
+                        print("exiting normally")
                         break
             except ValueError as e:
                 print(f"input-thread error: attempt to send on broken connection: {e.args[::-1]}")
                 break
-            except EOFError as e:
-                pass
-                # print(f"input-thread error: EOF: {e.args[::-1]}")
-                #
-                # temp workaround for piping into script
-                # => opens input as FIFO instead tty
-                # => echo -n "connnode:172.17.0.7:45666" | /p2p/node.py `hostname -I` 45666
-                #
-                # if not sys.stdin.isatty():
-                #     print("setting sys.stdin as tty..")
-                #     sys.stdin = open("/dev/tty")
-                # continue
             except Exception as e:
                 print(f"input-thread error: unexpected error on input(): {e.args[::-1]}")
                 break
+            except EOFError as e:
+                pass
         print("\ninput-thread exited")
         return
         
