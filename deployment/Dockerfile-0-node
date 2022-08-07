@@ -14,6 +14,7 @@ RUN mkdir -m 0700 /p2p/
 COPY ./app/0-node/inputthread.py /p2p/inputthread.py
 COPY ./app/0-node/inputcallback.py /p2p/inputcallback.py
 COPY ./app/0-node/node_fnc.py /p2p/node_fnc.py
+COPY ./app/0-node/tcp_http_headers.py /p2p/tcp_http_headers.py
 COPY ./app/0-node/init.py /p2p/init.py
 COPY ./app/0-node/node.py /p2p/node.py
 

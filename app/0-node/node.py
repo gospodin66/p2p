@@ -21,7 +21,20 @@ import errno
 import base64
 import time
 import ipaddress
+import tcp_http
 import re
+
+# Console colors
+W = '\033[0m'  # white (normal)
+R = '\033[31m'  # red
+G = '\033[32m'  # green
+O = '\033[33m'  # orange
+B = '\033[34m'  # blue
+P = '\033[35m'  # purple
+C = '\033[36m'  # cyan
+GR = '\033[37m'  # gray
+BOLD = '\033[1m'
+END = '\033[0m'
 
 class Node:
 
@@ -339,24 +352,23 @@ class Node:
                     inc_data = inc_data.decode().strip()
 
                 if inc_data:
+                    
+                    t = time.strftime(c.TIME_FORMAT, time.localtime())
+                    
+                    if re.search("favicon.ico", inc_data):
+                        # drop favicons
+                        continue
+                    
                     #
                     # http (plaintext)
                     #
-                    if re.search("^GET\s{1}/[a-z]*\s{1}HTTP/1.1", inc_data):
+                    if re.search("^GET\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
 
                         print(f"[!] received HTTP request")
-                        
-                        out = "HTTP/1.1 200 OK\r\n" \
-                            "Server: Custom\r\n" \
-                            "Content-type: text/html\r\n" \
-                            "Connection: close\r\n\r\n" \
-                            "200\r\n"
+                        self.handle_http_connection(recv_payload=inc_data, s=inc['node']['socket'], q=q, c=c)
 
-                        # HTTP response to target
-                        inc['node']['socket'].send(out.encode('utf-8'))
+                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: \n{B}{inc_data}{END}")
 
-                        # close socket for response to be received and rendered at endpoint
-                        self.close_socket(s=inc['node']['socket'], ssi=[], q=q, c=c)
                     #
                     # tcp (bytes)
                     #
@@ -389,10 +401,85 @@ class Node:
                         if isinstance(inc_data, bytes):
                             inc_data = inc_data.decode()
 
-                    t = time.strftime(c.TIME_FORMAT, time.localtime())
-                    print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {inc_data}")
+                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{inc_data}{END}")
 
         return 0
+
+
+    #
+    #
+    #
+    def handle_http_connection(
+        self,
+        recv_payload: str,
+        s: socket.socket,
+        q: queue.Queue,
+        c: node_fnc._Const
+    ) -> None:
+
+        http_version = tcp_http.get_http_version()
+        http_response_code = tcp_http.get_http_response_code()
+        encoding = tcp_http.get_encoding()
+        
+        cookies = self.set_cookies(recv_payload)
+            
+        headers_arr = tcp_http.set_http_headers()
+        headers_str = "\r\n".join(str(header) for header in headers_arr)
+    
+        try:
+            payload = 200
+            http_payload = "<!DOCTYPE html>" \
+                        "<html>" \
+                            f"<body>{str(payload)}</body>" \
+                        "</html>"
+            out = f"{http_version} {http_response_code[0]}\r\n" \
+                  f"{headers_str}\r\n" \
+                  +(f"{cookies}\r\n\r\n" if cookies != "" else "\r\n")+ \
+                  f"{http_payload}\r\n"
+                  
+            # HTTP response to target
+            s.send(out.encode(encoding))
+
+        except Exception as e:
+            print(f"[!] SERVER ERROR: {e.args[::-1]}")
+            payload = 500
+            http_payload = "<!DOCTYPE html>" \
+                            "<html>" \
+                                f"<body>{str(payload)}</body>" \
+                            "</html>"
+            out = f"{http_version} {http_response_code[3]}\r\n" \
+                  f"{headers_str}\r\n" \
+                  +(f"{cookies}\r\n\r\n" if cookies != "" else "\r\n")+ \
+                  f"{http_payload}\r\n"
+                  
+            # HTTP response to target
+            s.send(out.encode(encoding))
+
+        # close socket for response to be received and rendered at endpoint
+        self.close_socket(s=s, ssi=[], q=q, c=c)
+
+
+    #
+    #
+    #
+    def set_cookies(self, payload: str) -> str:
+        rand_id = tcp_http.generate_nonce(32)
+        b64_csp_token = base64.b64encode(tcp_http.generate_nonce(32).encode())
+        # "Secure; " \
+        cookies = f"Set-Cookie: sessid={rand_id}; " \
+                    "SameSite=Lax; " \
+                    "HttpOnly; " \
+                    f"Expires={tcp_http.get_cookie_expiry()};" \
+                    if re.search("Cookie:\s{1}sessid", payload) == None \
+                    else ""
+        # "Secure; " \
+        cookies += f"Set-Cookie: csp_token={b64_csp_token}; " \
+                    "SameSite=Lax; " \
+                    "HttpOnly; " \
+                    f"Expires={tcp_http.get_cookie_expiry()};" \
+                    if re.search("Cookie:\s{1}csp_token", payload) == None \
+                    else ""
+        return cookies
 
 
     #
