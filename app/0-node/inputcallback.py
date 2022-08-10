@@ -35,9 +35,7 @@ def input_callback(inp, args) -> int:
 
     if inp[:6] == "bccmd:":
         print(f">>> broadcasting command [{inp[6:]}]")
-        cmd = str("inccmd:" + inp[6:]).encode()
-        n.broadcast_msg(msg=cmd, c=c, q=q)
-        return 0
+        out = str("inccmd:" + inp[6:]).encode()
 
     elif inp[:9] == "sendfile:":
         print("sending file..")
@@ -51,7 +49,10 @@ def input_callback(inp, args) -> int:
         addr = inp[9:len(inp)].split(":")
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 0
+
         n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
+        q.queue.clear()
+        print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp[:7] == "dcnode:":
@@ -65,6 +66,8 @@ def input_callback(inp, args) -> int:
         if node_fnc.validate_ip_port(str(addr), 1) != 0:
             return 0
         n.dc_node(ip=str(addr), q=q, c=c)
+        q.queue.clear()
+        print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp[:11] == "sendtonode:":
@@ -73,6 +76,8 @@ def input_callback(inp, args) -> int:
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 0
         n.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c, q=q)
+        q.queue.clear()
+        print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp[:10] == "cmdtonode:":
@@ -81,6 +86,8 @@ def input_callback(inp, args) -> int:
         if node_fnc.validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 0
         n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c, q=q)
+        q.queue.clear()
+        print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp == "getopts:":
@@ -89,6 +96,8 @@ def input_callback(inp, args) -> int:
 
     elif inp == "listconn:":
         n.conn_from_list(q=q, c=c)
+        q.queue.clear()
+        print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp == "conninfo:":
@@ -103,7 +112,6 @@ def input_callback(inp, args) -> int:
         out = inp.encode()
 
     n.broadcast_msg(msg=out, c=c, q=q)
-    
     q.queue.clear()
     print(f"cleared queue -- size: {q.qsize()}")
 

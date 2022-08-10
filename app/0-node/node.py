@@ -127,7 +127,7 @@ class Node:
         self._tcp_connections.append(conn_socket)
         self.send_list(target=conn_socket["socket"])
 
-        out = f"new connection >>> {conn_socket['ip']}:{conn_socket['port']}"
+        out = f"connected {'':<5}>>> {conn_socket['ip']}:{conn_socket['port']}"
         node_fnc.write_log(out, c)
 
         print(f"{t} :: {out}")
@@ -193,6 +193,10 @@ class Node:
         except socket.error as e:
             if self._EXIT_ON_CMD:
                 return 1
+            if e.errno == 11:
+                # chrome's favicon request results with 'resource unavailable' error when dropped
+                print(f"socket.accept(): {e.args[::-1]}")
+                return 0
             print(f"socket error on socket.accept(): {e.args[::-1]}")
             return -1
         except Exception as e:
@@ -220,7 +224,7 @@ class Node:
 
         t = time.strftime(c.TIME_FORMAT, time.localtime())
 
-        out = f"new connection <<< {addr[0]}:{addr[1]}"
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
         node_fnc.write_log(out, c)
 
         print(f"{t} :: {out}")
@@ -354,21 +358,43 @@ class Node:
                 if inc_data:
                     
                     t = time.strftime(c.TIME_FORMAT, time.localtime())
-                    
-                    if re.search("favicon.ico", inc_data):
-                        # drop favicons
+
+                    #
+                    # drop blacklisted requests => 403
+                    #
+                    blacklist = tcp_http.get_blacklist()
+                    break_continue = False
+
+                    for request_path in blacklist:
+                        if re.search(f"{request_path}", inc_data):
+                            print("dropping favicon request..")
+                            
+                            headers_arr = tcp_http.set_http_headers()
+                            headers_str = "\r\n".join(str(header) for header in headers_arr)
+
+                            response = f"HTTP/1.1 403 Forbidden\r\n{headers_str}\r\n"
+
+                            s.send(response.encode('utf-8'))
+                            self.close_socket(s=s, ssi=stream_in, q=q, c=c)
+                            break_continue = True
+                            break
+
+                    if break_continue:
                         continue
                     
                     #
-                    # http (plaintext)
+                    # http (plaintext) => auto-response over same socket
                     #
                     if re.search("^GET\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
+                        # craft & send HTTP response to target
+                        response = tcp_http.craft_http_response(inc_data)
+                        s.send(response.encode('utf-8'))
+                        # close socket for response to be received and rendered at endpoint
+                        self.close_socket(s=s, ssi=[], q=q, c=c)
 
-                        print(f"[!] received HTTP request")
-                        self.handle_http_connection(recv_payload=inc_data, s=inc['node']['socket'], q=q, c=c)
+                        data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
 
-                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: \n{B}{inc_data}{END}")
-
+                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{data_formatted}{END}")
                     #
                     # tcp (bytes)
                     #
@@ -401,91 +427,18 @@ class Node:
                         if isinstance(inc_data, bytes):
                             inc_data = inc_data.decode()
 
-                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{inc_data}{END}")
+                        data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
+
+                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {R}{data_formatted}{END}")
 
         return 0
-
-
-    #
-    #
-    #
-    def handle_http_connection(
-        self,
-        recv_payload: str,
-        s: socket.socket,
-        q: queue.Queue,
-        c: node_fnc._Const
-    ) -> None:
-
-        http_version = tcp_http.get_http_version()
-        http_response_code = tcp_http.get_http_response_code()
-        encoding = tcp_http.get_encoding()
-        
-        cookies = self.set_cookies(recv_payload)
-            
-        headers_arr = tcp_http.set_http_headers()
-        headers_str = "\r\n".join(str(header) for header in headers_arr)
-    
-        try:
-            payload = 200
-            http_payload = "<!DOCTYPE html>" \
-                        "<html>" \
-                            f"<body>{str(payload)}</body>" \
-                        "</html>"
-            out = f"{http_version} {http_response_code[0]}\r\n" \
-                  f"{headers_str}\r\n" \
-                  +(f"{cookies}\r\n\r\n" if cookies != "" else "\r\n")+ \
-                  f"{http_payload}\r\n"
-                  
-            # HTTP response to target
-            s.send(out.encode(encoding))
-
-        except Exception as e:
-            print(f"[!] SERVER ERROR: {e.args[::-1]}")
-            payload = 500
-            http_payload = "<!DOCTYPE html>" \
-                            "<html>" \
-                                f"<body>{str(payload)}</body>" \
-                            "</html>"
-            out = f"{http_version} {http_response_code[3]}\r\n" \
-                  f"{headers_str}\r\n" \
-                  +(f"{cookies}\r\n\r\n" if cookies != "" else "\r\n")+ \
-                  f"{http_payload}\r\n"
-                  
-            # HTTP response to target
-            s.send(out.encode(encoding))
-
-        # close socket for response to be received and rendered at endpoint
-        self.close_socket(s=s, ssi=[], q=q, c=c)
-
-
-    #
-    #
-    #
-    def set_cookies(self, payload: str) -> str:
-        rand_id = tcp_http.generate_nonce(32)
-        b64_csp_token = base64.b64encode(tcp_http.generate_nonce(32).encode())
-        # "Secure; " \
-        cookies = f"Set-Cookie: sessid={rand_id}; " \
-                    "SameSite=Lax; " \
-                    "HttpOnly; " \
-                    f"Expires={tcp_http.get_cookie_expiry()};" \
-                    if re.search("Cookie:\s{1}sessid", payload) == None \
-                    else ""
-        # "Secure; " \
-        cookies += f"Set-Cookie: csp_token={b64_csp_token}; " \
-                    "SameSite=Lax; " \
-                    "HttpOnly; " \
-                    f"Expires={tcp_http.get_cookie_expiry()};" \
-                    if re.search("Cookie:\s{1}csp_token", payload) == None \
-                    else ""
-        return cookies
 
 
     #
     # disconnect both node sockets
     #
     def dc_node(self, ip: str, q: queue.Queue, c: node_fnc._Const) -> None:
+
         inc_type_port, out_type_port = (0, 0)
         operation_success=False
 
@@ -521,9 +474,9 @@ class Node:
                     break
 
         if operation_success:
-            print(f">>> sockets closed successfuly for ip [{ip}].")
+            print(f">>> sockets closed successfuly for ip [{ip}]")
         else:
-            print(f">>> error! sockets not closed for ip [{ip}].")
+            print(f">>> error! sockets not closed for ip [{ip}]")
 
 
     #
@@ -546,12 +499,15 @@ class Node:
                 t = time.strftime(c.TIME_FORMAT, time.localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
 
-                out = f"disconnected {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']} | type: {socket_direction_type}"
-                
+                out = f"disconnected {'':<2}{socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}"
                 node_fnc.write_log(out, c)
                 print(f"{t} :: {out}")
 
-                del self._tcp_connections[node]
+                if self._tcp_connections[node] in self._tcp_connections:
+                    del self._tcp_connections[node]
+                    break
+                    
+                print("[!] node was not in list!")
                 break
         q.put_nowait(self._tcp_connections)
 
@@ -620,10 +576,10 @@ class Node:
                         break
 
             if operation_success:
-                print(f">>> sockets closed successfuly for ip [{ip}].")
+                print(f">>> sockets closed successfuly for ip [{ip}]")
                 time.sleep(0.5)
             else:
-                print(f">>> error! sockets not closed for ip [{ip}].")
+                print(f">>> error! sockets not closed for ip [{ip}]")
 
 
 
