@@ -24,6 +24,7 @@ import ipaddress
 import tcp_http
 import re
 
+
 # Console colors
 W = '\033[0m'  # white (normal)
 R = '\033[31m'  # red
@@ -352,8 +353,12 @@ class Node:
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                     continue
 
-                if isinstance(inc_data, bytes):
-                    inc_data = inc_data.decode().strip()
+                try:
+                    if isinstance(inc_data, bytes):
+                        inc_data = inc_data.decode().strip()
+                except Exception as e:
+                    print(f"error on decoding received data: {e.args[::-1]}")
+                    return 0
 
                 if inc_data:
                     
@@ -367,7 +372,7 @@ class Node:
 
                     for request_path in blacklist:
                         if re.search(f"{request_path}", inc_data):
-                            print("dropping favicon request..")
+                            print(f"dropping blacklisted request: {request_path}")
                             
                             headers_arr = tcp_http.set_http_headers()
                             headers_str = "\r\n".join(str(header) for header in headers_arr)
@@ -385,7 +390,7 @@ class Node:
                     #
                     # http (plaintext) => auto-response over same socket
                     #
-                    if re.search("^GET\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
+                    if re.search("^(GET|POST){1}\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
                         # craft & send HTTP response to target
                         response = tcp_http.craft_http_response(inc_data)
                         s.send(response.encode('utf-8'))
@@ -394,7 +399,12 @@ class Node:
 
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
 
-                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{data_formatted}{END}")
+                        output = f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{data_formatted}{END}"
+
+                        print(output)
+
+                        node_fnc.write_log(output, c)
+
                     #
                     # tcp (bytes)
                     #

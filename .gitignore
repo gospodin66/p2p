@@ -8,3 +8,6 @@ app/def-node/
 deployment/def-node-entrypoint.sh
 deployment/Dockerfile-def-node
 deployment/scripts/helm-install-nginx-ingress.sh
+deployment/env
+deployment/.pytest_cache
+deployment/.env

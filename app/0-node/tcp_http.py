@@ -1,9 +1,8 @@
 import random
-import os
 import uuid
 import re
 import base64
-
+import time
 
 #
 #
@@ -25,6 +24,8 @@ def set_http_headers() -> list:
 
     return [
         "Server: Custom",
+        "Access-Control-Allow-Origin: *",
+        "Access-Control-Allow-Methods: GET, POST",
         "Content-type: text/html",
         "X-Frame-Options: deny",
         "X-Content-Type-Options: nosniff",
@@ -96,6 +97,7 @@ def set_cookies(http_header: str) -> str:
 def get_blacklist() -> list:
     return [
         'favicon.ico',
+        'test-AAAAA'
     ]
 
 #

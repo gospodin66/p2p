@@ -1,0 +1,2 @@
+[build-system]
+requires = ["git+https://github.com/gospodin66/p2p.git@master"]
