@@ -11,3 +11,5 @@ deployment/scripts/helm-install-nginx-ingress.sh
 deployment/env
 deployment/.pytest_cache
 deployment/.env
+deployment/venv/
+deployment/src/

@@ -64,21 +64,21 @@ test:
 
 build: ## Build docker image
 build:
-	docker build -t $DOCKER_NAME:$DOCKER_TAG -f $NODE_DOCKERFILE $CONTEXT_PATH 
+	docker build -t $$DOCKER_NAME:$$DOCKER_TAG -f $$NODE_DOCKERFILE $$CONTEXT_PATH 
 
 create: ## Create docker image
 create: build
-	docker create -it --name $DOCKER_NAME $DOCKER_NAME:$DOCKER_TAG
+	docker create -it --name $$DOCKER_NAME $$DOCKER_NAME:$$DOCKER_TAG
 
 start: ## Build and start docker image
 start: build
-	docker start $DOCKER_NAME
+	docker start $$DOCKER_NAME
 
 run: ## build, start and run docker image
 run: start
-	docker run -it $DOCKER_NAME:$DOCKER_TAG
+	docker run -it $$DOCKER_NAME:$$DOCKER_TAG
 
 exec: ## build, start and exec into docker image
 exec: start
-	docker exec -it $DOCKER_NAME python
+	docker exec -it $$DOCKER_NAME python
 
