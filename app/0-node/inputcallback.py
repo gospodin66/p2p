@@ -1,7 +1,8 @@
-import node
 import node_fnc
 import queue
-import ipaddress
+
+from node import Node
+from base64 import b64encode
 
 # global callback for input-thread (broadcast/exec messages/commands)
 # inp  => input string | bytes
@@ -9,14 +10,14 @@ import ipaddress
 def input_callback(inp, args) -> int:
 
     # close node from input thread
-    def exit_from_cmd(n: node.Node) -> int:
+    def exit_from_cmd(n: Node) -> int:
         n.close_master_socket()
         n._EXIT_ON_CMD = True
         return 1
 
     n, c, q = (args["_node"], args["_const"], args["_queue"])
 
-    if not isinstance(n, node.Node) or not isinstance(c, node_fnc._Const) or not isinstance(q, queue.Queue):
+    if not isinstance(n, Node) or not isinstance(c, node_fnc._Const) or not isinstance(q, queue.Queue):
         print("input-callback: invalid class instances.. exiting input thread..")
         return 1
     
@@ -35,7 +36,7 @@ def input_callback(inp, args) -> int:
 
     if inp[:6] == "bccmd:":
         print(f">>> broadcasting command [{inp[6:]}]")
-        out = str("inccmd:" + inp[6:]).encode()
+        out = "inccmd:".encode() + b64encode(str(inp[6:]).encode())
 
     elif inp[:9] == "sendfile:":
         print("sending file..")
@@ -57,11 +58,6 @@ def input_callback(inp, args) -> int:
 
     elif inp[:7] == "dcnode:":
         addr = inp[7:len(inp)]
-        try:
-            temp = ipaddress.ip_address(inp[7:])
-        except ValueError as e:
-            print(f"[!] invalid ip address format: {inp[7:]} | {e.args[::-1]}")
-            return 0
         # 1 as dummy port argument => disconnects by ip
         if node_fnc.validate_ip_port(str(addr), 1) != 0:
             return 0

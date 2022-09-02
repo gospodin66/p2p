@@ -2,14 +2,13 @@
 
 import sys
 import os
-import threading
 import socket
-import queue
-import time
-import node
-import inputthread
-import node_fnc
-import inputcallback
+
+from inputthread import InputThread
+from queue import Queue
+from node import Node
+from node_fnc import _Const, validate_ip_port
+from inputcallback import input_callback
 
 def main():
     _argc = len(sys.argv)
@@ -17,7 +16,7 @@ def main():
     if _argc == 2:
         host = sys.argv[1].split(':')
         ip, port = (str(host[0]), int(host[1]))
-        if node_fnc.validate_ip_port(ip, port) != 0:
+        if validate_ip_port(ip, port) != 0:
             print(f"invalid ip:port.")
             exit(1)
     # no args
@@ -31,21 +30,21 @@ def main():
             print("invalid arguments")
             exit(1)
 
-    if node_fnc.validate_ip_port(ip, port) != 0:
+    if validate_ip_port(ip, port) != 0:
         exit(1)
     
-    n = node.Node(ip, port)
-    q = queue.Queue(512)
-    c = node_fnc._Const()
+    n = Node(ip, port)
+    q = Queue(512)
+    c = _Const()
 
     # init non-blocking input thr
-    inpthr = inputthread.InputThread(input_callback=inputcallback.input_callback, _node=n, _const=c, _queue=q)
+    inpthr = InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
     # thread watcher
     while 1:
         if not inpthr.is_alive():
             print("re-starting input-thread")
             inpthr = None
-            inpthr = inputthread.InputThread(input_callback=inputcallback.input_callback, _node=n, _const=c, _queue=q)
+            inpthr = InputThread(input_callback=input_callback, _node=n, _const=c, _queue=q)
             break
         else:
             print("input-thread is alive.")
