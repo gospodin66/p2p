@@ -14,7 +14,7 @@ metadata:
     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 40
+  replicas: {{ .Values.botNodeReplicas }}
   selector:
     matchLabels:
       app: {{ .Values.botNodeApp }}
@@ -29,8 +29,8 @@ spec:
         image: {{ .Values.botNodeImage }}
         command: ["/bin/sh"]
         args: ["-c", "/node-entrypoint.sh"]
-        stdin: true
-        tty: true
+        stdin: {{ .Values.stdin }}
+        tty: {{ .Values.tty }}
         ports:
         - containerPort: {{ .Values.botNodeContainerPort }}
         imagePullPolicy: IfNotPresent
@@ -58,7 +58,7 @@ metadata:
     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.node0Replicas }}
   selector:
     matchLabels:
       app: {{ .Values.node0App }}
@@ -73,8 +73,8 @@ spec:
         image: {{ .Values.node0Image }}
         command: ["/bin/sh"]
         args: ["-c", "/node-entrypoint.sh"]
-        tty: true
-        stdin: true
+        stdin: {{ .Values.stdin }}
+        tty: {{ .Values.tty }}
         ports:
         - containerPort: {{ .Values.node0ContainerPort }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}

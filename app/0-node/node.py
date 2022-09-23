@@ -13,10 +13,10 @@
 
 import socket
 import select
-import queue
-import node_fnc
 import tcp_http
 
+from node_fnc import _Const, write_log, isbase64, validate_ip_port
+from queue import Queue
 from ipaddress import ip_address
 from re import search as regex_search
 from time import strftime, localtime, sleep
@@ -51,13 +51,17 @@ class Node:
         self._INPUT, self._OUTPUT, self._EXCEPT = [], [], []
         self._EXIT_ON_CMD = False
 
+    
+    def set_connections_from_thread(self, connections: list):
+        self._tcp_connections = connections
+
 
     #
     #
     #
-    def init_server(self, c: node_fnc._Const) -> int:
+    def init_server(self, c: _Const) -> int:
 
-        node_fnc.write_log(">>> Initializing server..", c)
+        write_log(">>> Initializing server..", c)
 
         try:
             self._socket["socket"].bind((self._socket["ip"], self._socket["port"]))
@@ -74,7 +78,7 @@ class Node:
     #
     # connect to peer
     #
-    def connect_to_node(self, ip: str, port: int, c: node_fnc._Const) -> int:
+    def connect_to_node(self, ip: str, port: int, c: _Const) -> int:
         target = {
             "id": self._tcp_connections[i]["id"] \
                     for i in range(len(self._tcp_connections)) \
@@ -116,7 +120,7 @@ class Node:
         self.send_list(target=conn_socket["socket"])
 
         out = f"connected {'':<5}>>> {conn_socket['ip']}:{conn_socket['port']}"
-        node_fnc.write_log(out, c)
+        write_log(out, c)
 
         print(f"{t} :: {out}")
 
@@ -177,7 +181,7 @@ class Node:
     #
     # accept incomming connection | append node to peer list | add socket to stream_input | send new peer list to input thread
     #
-    def handle_inc_connection(self, stream_in: list, q: queue.Queue, c: node_fnc._Const) -> int:
+    def handle_inc_connection(self, stream_in: list, q: Queue, c: _Const) -> int:
         try:
             sock, addr = self._socket["socket"].accept()
             sock.setblocking(False)
@@ -222,7 +226,7 @@ class Node:
         t = strftime(c.TIME_FORMAT, localtime())
 
         out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
-        node_fnc.write_log(out, c)
+        write_log(out, c)
 
         print(f"{t} :: {out}")
 
@@ -233,7 +237,7 @@ class Node:
     #
     # connect to all new peers in list | send new peer list to input thread
     #
-    def loop_connect_nodes(self, peer_list: str, q: queue.Queue, c: node_fnc._Const) -> None:
+    def loop_connect_nodes(self, peer_list: str, q: Queue, c: _Const) -> None:
 
         peer_list_arr = peer_list.split("\n")
         peers_len = range(len(peer_list_arr))
@@ -267,7 +271,7 @@ class Node:
 
             # TODO: selective connections
             
-            if node_fnc.validate_ip_port(ip=ip, port=port):
+            if validate_ip_port(ip=ip, port=port):
                 continue
 
             self.connect_to_node(ip=ip, port=port, c=c)
@@ -280,7 +284,7 @@ class Node:
     #
     # saved_stream_in => list of sockets
     #
-    def handle_connections(self, q: queue.Queue, c: node_fnc._Const) -> int:
+    def handle_connections(self, q: Queue, c: _Const) -> int:
 
         stream_in = [ self._socket["socket"] ]
         select_timeout_sec = 3
@@ -390,7 +394,7 @@ class Node:
 
                         print(output)
 
-                        node_fnc.write_log(output, c)
+                        write_log(output, c)
 
                     #
                     # tcp (bytes)
@@ -418,7 +422,7 @@ class Node:
                             except Exception as e:
                                 print(f"error on base64-decode returning-cmd: {e.args[::-1]}")
 
-                        elif node_fnc.isbase64(inc_data):
+                        elif isbase64(inc_data):
                             try:
                                 inc_data = b64decode(inc_data).decode()
                                 if isinstance(inc_data, bytes):
@@ -439,7 +443,7 @@ class Node:
     #
     # disconnect both node sockets
     #
-    def dc_node(self, ip: str, q: queue.Queue, c: node_fnc._Const) -> None:
+    def dc_node(self, ip: str, q: Queue, c: _Const) -> None:
 
         inc_type_port, out_type_port = (0, 0)
         operation_success=False
@@ -485,7 +489,7 @@ class Node:
     # close socket | remove from lists | re-send new list to stream_in thread
     # ssi => stream-select-inputs list
     #
-    def close_socket(self, s: socket.socket, ssi: list, q: queue.Queue, c: node_fnc._Const) -> None:
+    def close_socket(self, s: socket.socket, ssi: list, q: Queue, c: _Const) -> None:
         try:
             s.shutdown(socket.SHUT_RDWR)
         except socket.error as e:
@@ -502,7 +506,7 @@ class Node:
                 socket_direction_type = ">>>" if self._tcp_connections[node]['type'] == "OUT" else "<<<"
 
                 out = f"disconnected {'':<2}{socket_direction_type} {self._tcp_connections[node]['ip']}:{self._tcp_connections[node]['port']}"
-                node_fnc.write_log(out, c)
+                write_log(out, c)
                 print(f"{t} :: {out}")
 
                 if self._tcp_connections[node] in self._tcp_connections:
@@ -595,7 +599,7 @@ class Node:
     #
     # send msg to single node
     #
-    def send_to_node(self, ip: str, port: int, msg: bytes, c: node_fnc._Const, q: queue.Queue) -> int:
+    def send_to_node(self, ip: str, port: int, msg: bytes, c: _Const, q: Queue) -> int:
         target = {
             "node": self._tcp_connections[node] \
                     for node in range(len(self._tcp_connections)) \
@@ -620,7 +624,7 @@ class Node:
     #
     #
     #
-    def broadcast_msg(self, msg: bytes, c: node_fnc._Const, q: queue.Queue) -> int:
+    def broadcast_msg(self, msg: bytes, c: _Const, q: Queue) -> int:
 
         out = f"broadcasting >>> {msg}"
 
@@ -628,7 +632,7 @@ class Node:
             if self._tcp_connections[node]["socket"] == self._socket["socket"]: # not sending to self
                 continue
             try:
-                node_fnc.write_log(out, c)
+                write_log(out, c)
                 #
                 # TODO: http response
                 #       curl does not accept bytes => 'HTTP/0.9 error'
@@ -649,7 +653,7 @@ class Node:
     #
     #
     #
-    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: node_fnc._Const, q: queue.Queue) -> int:
+    def cmd_to_node(self, ip: str, port: int, cmd: bytes, c: _Const, q: Queue) -> int:
         target = {
             "node": self._tcp_connections[node] \
                     for node in range(len(self._tcp_connections)) \
@@ -677,7 +681,7 @@ class Node:
     #
     #
     #
-    def conn_from_list(self, q: queue.Queue, c: node_fnc._Const) -> None:
+    def conn_from_list(self, q: Queue, c: _Const) -> None:
         ip = b''
         ips_path = '/p2p/ips.txt'
         try:

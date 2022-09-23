@@ -5,6 +5,9 @@ control/
 deployment/registry-images/*
 app/0-node/ips.txt
 app/def-node/
+app/0-node/RSA-keys/
+app/0-node/encrypted_data.bin
+app/0-node/rsaencryptdecryptexample.py
 deployment/def-node-entrypoint.sh
 deployment/Dockerfile-def-node
 deployment/scripts/helm-install-nginx-ingress.sh
