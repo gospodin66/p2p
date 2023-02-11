@@ -1,5 +1,14 @@
 ---
 
+***************************************************************************
+1. create cluster from p2p/deployment/p2p-net/kind-cluster-config.yaml
+
+2. run p2p/deployment/scripts/setup.sh
+
+2. (to delete) run p2p/deployment/scripts/clear.sh
+***************************************************************************
+
+
 
 
 kind create cluster --config /home/cheki/projects/p2p/deployment/p2p-net/kind-cluster-config.yaml
@@ -17,19 +26,19 @@ helm install --dry-run --debug --generate-name -f ../p2p-net/values.yaml ../p2p-
 
 helm upgrade --install p2p-network -f ../p2p-net/values.yaml ../p2p-net
 
-*******************************************
+***************************************************************************
 
 kubectl get deploy --namespace p2p -o wide && \
 kubectl get po --namespace p2p -o wide && \
 kubectl get svc --namespace p2p -o wide
 
-*******************************************
+***************************************************************************
 
 kind load docker-image p2p-0-node:1.0
 # kind load docker-image p2p-def-node:1.0
 kind load docker-image p2p-bot-node:1.0
 
-*******************************************
+***************************************************************************
 
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout 172.20.0.20.key.pem -out 172.20.0.20.crt.pem -subj "/CN=172.20.0.20" 
@@ -40,7 +49,7 @@ curl -vvv --insecure https://127.0.0.1:47780/docker-image-registry/p2p-network-s
 
 curl -vvv --insecure -L https://registryadmin:registrypassword@127.0.0.1:47780/docker-image-registry
 
-*******************************************
+***************************************************************************
 
 ## up hosts in network
 kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- \
@@ -59,7 +68,7 @@ kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | 
 
 kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) -- touch /p2p/ips.txt && nmap -n -sn 10.244.0.10-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
 
-*******************************************
+***************************************************************************
 
 kubectl exec -it $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) -- /bin/sh
 
@@ -83,5 +92,4 @@ kubectl config set-context --current --namespace=p2p
 helm install -f /home/cheki/projects/p2p/deployment/p2p-net/values.yaml p2pnet /home/cheki/projects/p2p/deployment/p2p-net
 
 kubectl config set-context --current --namespace=p2pnet
-
 
