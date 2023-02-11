@@ -243,16 +243,6 @@ class Node:
 
         print(f"{t} :: {out}")
 
-
-
-        try:
-            # reverse connection?
-            self.connect_to_node(ip=addr[0], port=45666, c=c)
-        except Exception as e:
-            print(f"Not able to establish reverse connection to {addr[0]}: {e.args[::-1]}")
-
-
-
         return 0
 
 
