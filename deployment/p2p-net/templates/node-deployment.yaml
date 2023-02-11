@@ -133,6 +133,37 @@ spec:
       targetPort: {{ .Values.node0ContainerPort }}
       nodePort: {{ .Values.node0NodePort }}
 
+###################################### 
+# TEST POD                           #
+# ####################################
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.node0App }}
+  labels:
+    app: {{ .Values.node0App }}
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+spec:
+  containers:
+  - name: node-0-test
+    image: {{ .Values.node0Image }}
+    tty: true
+    stdin: true
+    ports:
+    - containerPort: {{ .Values.testnodeContainerPort1 }}
+    - containerPort: {{ .Values.testnodeContainerPort2 }}
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: {{ .Values.limitsCpu }}
+        memory: {{ .Values.limitsMemory }}
+      requests:
+        cpu: {{ .Values.requestsCpu }}
+        memory: {{ .Values.requestsMemory }}
 
 # ---
 # apiVersion: networking.k8s.io/v1
@@ -240,33 +271,3 @@ spec:
 #      targetPort: {{ .Values.defNodeServicePort }}
 
 
-###################################### 
-# POD CONFIG                         #
-# ####################################
-# apiVersion: v1
-# kind: Pod
-# metadata:
-#   namespace: {{ .Values.namespace }}
-#   name: {{ .Values.node0App }}
-#   labels:
-#     app: {{ .Values.node0App }}
-#     app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#   annotations:
-#     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-# spec:
-#   containers:
-#   - name: node-0
-#     image: {{ .Values.node0Image }}
-#     tty: true
-#     stdin: true
-#     ports:
-#     - containerPort: {{ .Values.node0ContainerPort }}
-#     imagePullPolicy: IfNotPresent
-#     resources:
-#       limits:
-#         cpu: {{ .Values.limitsCpu }}
-#         memory: {{ .Values.limitsMemory }}
-#       requests:
-#         cpu: {{ .Values.requestsCpu }}
-#         memory: {{ .Values.requestsMemory }}

@@ -34,3 +34,5 @@ botNodeServiceName: p2p-bot-node-connector
 botNodePort: 31516
 botNodeReplicas: 8
 #
+testnodeContainerPort1: 45666
+testnodeContainerPort2: 45667

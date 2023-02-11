@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# CLUSTER_IP='172.19.0.2'
+# CLUSTER_IP='172.19.0.3'
 # NODE_0_PORT=31515
 
 #p2p-0-node-connector = cluster_ip + node0_port

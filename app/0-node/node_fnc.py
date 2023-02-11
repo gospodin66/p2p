@@ -52,8 +52,6 @@ def display_options() -> None:
 
 
 
-
-
 def validate_ip_port(ip: str, port: int) -> int:
     # validate ip
     try:
