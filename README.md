@@ -14,14 +14,20 @@ peer-to-peer network tutorials
 ```
 kind create cluster \
     --config /home/cheki/projects/p2p/deployment/p2p-net/kind-cluster-config.yaml
+```
 
 - Set default kubernetes namespace:
+```
 kubectl config set-context --current --namespace=p2p
+```
 
 - Helm CREATE chart:
+```
 helm create p2p-net
+```
 
 - Helm INSTALL:
+```
 helm install --dry-run --debug --generate-name -f ../p2p-net/values.yaml ../p2p-net
 helm install -f /home/cheki/projects/p2p/deployment/p2p-net/values.yaml \
                 p2pnet \
