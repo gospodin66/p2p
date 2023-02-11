@@ -3,8 +3,8 @@
 PROJECTS_PATH="/home/${USER}/projects"
 
 printf '%s\n' "--- building docker images.."
-if ! docker image build -t p2p-0-node:1.0   -f ../Dockerfile-0-node   ${PROJECTS_PATH}/p2p/ || \
-   ! docker image build -t p2p-bot-node:1.0 -f ../Dockerfile-bot-node ${PROJECTS_PATH}/p2p/
+if ! docker image build -t p2p-0-node:1.0   -f ../Dockerfile-0-node   $PROJECTS_PATH/p2p/ || \
+   ! docker image build -t p2p-bot-node:1.0 -f ../Dockerfile-bot-node $PROJECTS_PATH/p2p/
 then
     printf '%s\n\n' "--- error building docker images ---"
     exit 1
@@ -26,11 +26,11 @@ else
 fi
 
 kubectl create namespace p2p 2>/dev/null
+kubectl config set-context --current --namespace=p2p
 
 ################ HELM ###############
 
 printf '%s\n\n' "--- installing chart ---"
-cd /home/cheki/projects/p2p/deployment/scripts
 helm install p2p-net -f ../p2p-net/values.yaml ../p2p-net
 printf '%s\n\n' "--- done ---"
 

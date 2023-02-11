@@ -5,9 +5,11 @@ RUN apk update && apk add --no-cache \
                           nano \
                           net-tools
                       
-RUN mkdir -m 0700 /p2p/
+RUN mkdir -m 0700 /p2p/ && \
+    mkdir -p /p2p/cstmcrypt/RSA-keys && \
+    mkdir -p /p2p/cstmcrypt/AES-keys
 
-COPY ./app/bot-node/node.py /p2p/node.py
+COPY ./deployment/src/bot-node/ /p2p/
 
 RUN chmod 0700 /p2p/node.py
 

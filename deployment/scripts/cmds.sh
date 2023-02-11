@@ -1,5 +1,12 @@
 ---
 
+
+
+kind create cluster --config /home/cheki/projects/p2p/deployment/p2p-net/kind-cluster-config.yaml
+
+
+
+
 kubectl config set-context --current --namespace=p2p
 
 helm create p2p-net-chart
@@ -36,25 +43,27 @@ curl -vvv --insecure -L https://registryadmin:registrypassword@127.0.0.1:47780/d
 *******************************************
 
 ## up hosts in network
-kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- nmap -n 10.244.0.0-30/24 -p 44000-49999 -oG - | awk '/Up$/{print $2}' | sort -V
+kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- \
+  nmap -n 10.244.0.0-30/24 -p 44000-49999 -oG - | awk '/Up$/{print $2}' | sort -V
 
-kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- nmap -sn 10.244.0.30-255 -oG - | awk '/Up$/{print $2}' | sort -V
+kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- \
+  nmap -sn 10.244.0.30-255 -oG - | awk '/Up$/{print $2}' | sort -V
 
-
-kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- nmap --iflist
+kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- \
+  nmap --iflist
 
 
 # ADD ips in network to txt file
 # -D 10.244.0.100,10.244.0.101,10.244.0.102,10.244.0.103
 # proxychains
 
-kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) -- nmap -n -sn 10.244.0.10-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+kubectl exec $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) -- touch /p2p/ips.txt && nmap -n -sn 10.244.0.10-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
 
 *******************************************
 
 kubectl exec -it $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) -- /bin/sh
 
-nmap -n -sn 10.244.0.5-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+nmap -vvv -n -sn 10.244.1-2.0-50 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
 
 kubectl attach -it $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node)
 
@@ -66,3 +75,13 @@ kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+
 curl -vvv --insecure --user registryadmin:registrypassword https://192.168.1.61:47443
 
 curl -vvv --insecure --user registryadmin:registrypassword http://192.168.1.61:47880
+
+
+kubectl config set-context --current --namespace=p2p
+
+
+helm install -f /home/cheki/projects/p2p/deployment/p2p-net/values.yaml p2pnet /home/cheki/projects/p2p/deployment/p2p-net
+
+kubectl config set-context --current --namespace=p2pnet
+
+

@@ -1,23 +1,23 @@
 namespace: p2p
-
+#
 limitsCpu: 50m
 limitsMemory: 200Mi
-
+#
 requestsCpu: 20m
 requestsMemory: 100Mi
-
+#
 labelManagedBy: Helm
 annotationReleaseName: p2p-net
 annotationReleaseNamespace: p2p
-
+#
 tty: true
 stdin: true
-
+#
 serviceType: NodePort
 serviceProtocol: TCP
-
+#
 imagePullPolicy: IfNotPresent
-
+#
 node0App: p2p-0-node
 node0Image: docker.io/library/p2p-0-node:1.0
 node0ServicePort: 45660
@@ -25,11 +25,12 @@ node0ContainerPort: 45666
 node0ServiceName: p2p-0-node-connector
 node0NodePort: 31515
 node0Replicas: 1
-
+#
 botNodeApp: p2p-bot-node
 botNodeImage: docker.io/library/p2p-bot-node:1.0
 botNodeServicePort: 45661
 botNodeContainerPort: 45666
 botNodeServiceName: p2p-bot-node-connector
 botNodePort: 31516
-botNodeReplicas: 10
+botNodeReplicas: 8
+#

@@ -9,23 +9,14 @@ RUN apk update && apk add --no-cache \
                           nmap \
                           proxychains-ng
 
-RUN mkdir -m 0700 /p2p/
+RUN mkdir -m 0700 /p2p/ && \
+    mkdir -p /p2p/cstmcrypt/RSA-keys && \
+    mkdir -p /p2p/cstmcrypt/AES-keys
 
-COPY ./app/0-node/inputthread.py /p2p/inputthread.py
-COPY ./app/0-node/inputcallback.py /p2p/inputcallback.py
-COPY ./app/0-node/node_fnc.py /p2p/node_fnc.py
-COPY ./app/0-node/tcp_http.py /p2p/tcp_http.py
-COPY ./app/0-node/init.py /p2p/init.py
-COPY ./app/0-node/node.py /p2p/node.py
-
-RUN chmod 0700 \
-    /p2p/inputthread.py \
-    /p2p/init.py \
-    /p2p/inputcallback.py \
-    /p2p/node_fnc.py \
-    /p2p/init.py
+COPY ./deployment/src/0-node /p2p/
 
 RUN touch /p2p/ips.txt && \
+    chmod 0700 /p2p/init.py && \
     chmod 0666 /p2p/ips.txt
 
 COPY ./deployment/0-node-entrypoint.sh /node-entrypoint.sh

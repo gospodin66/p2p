@@ -151,7 +151,10 @@ def response_code(code: int) -> dict:
 #
 #
 # curl -vvv -o node-out-curl.py http://192.168.1.61:55333
+# curl -vvv -o node-out-curl.py http://172.19.0.3:31515
+#
 # wget -O node-out-wget.py http://192.168.1.61:55333
+# wget -O node-out-wget.py http://172.19.0.3:31515
 #
 def craft_http_response(tcp_packet_data: str) -> None:
     
@@ -164,7 +167,7 @@ def craft_http_response(tcp_packet_data: str) -> None:
         headers_str = "\r\n".join(str(header) for header in headers_arr)
         payload = ""
 
-        with open("./assets/bot-node.py", "r") as f:
+        with open("/p2p/assets/bot-node.py", "r") as f:
             payload = f.read()
 
         return  f"{http_version} {http_response_code[0]} {http_response_code[1]}\r\n" \

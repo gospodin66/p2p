@@ -1,5 +1,7 @@
 __pycache__
 assets/
+tests/
+http-registry/
 diag.txt
 control/
 deployment/registry-images/*
@@ -15,4 +17,3 @@ deployment/env
 deployment/.pytest_cache
 deployment/.env
 deployment/venv/
-deployment/src/

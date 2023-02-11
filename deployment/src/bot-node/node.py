@@ -26,10 +26,6 @@ from base64 import b64encode, b64decode
 from dataclasses import dataclass
 
 
-from cstmcrypt.localaes import aes_encrypter
-from cstmcrypt.localrsa import rsa_encrypter
-
-
 @dataclass(frozen=True)
 class _Const:
     BUFFER_SIZE = 4096
@@ -40,23 +36,12 @@ class _Const:
 class Node:
 
     def __init__(self, ip: str, port: int) -> None:
-        passphrase = "Always the same"
-
-        rsa_crypt = rsa_encrypter(
-            user=ip,
-            passphrase=passphrase
-        )
-
         self._socket = {
             "id": str(randint(10000000, 99999999)),
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": ip,
             "port": port,
             "type": "MASTER",
-            "meta": {
-                "rsa": rsa_crypt,
-                "aes": None
-            }
         }
         self._socket["socket"].setblocking(False)
         self._socket["socket"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -66,17 +51,17 @@ class Node:
 
 
 
-    def recreate_keypair(self, user: str):
-        passphrase = "Always the same"
-        d = f"cstmcrypt/RSA-keys/{user}"
+    # def recreate_keypair(self, user: str):
+    #     passphrase = "Always the same"
+    #     d = f"cstmcrypt/RSA-keys/{user}"
 
-        if os.path.exists(d):
-            os.rmdir(d)
+    #     if os.path.exists(d):
+    #         os.rmdir(d)
 
-        self._socket["meta"]["rsa"] = rsa_encrypter(
-            user=user,
-            passphrase=passphrase
-        )
+    #     self._socket["meta"]["rsa"] = rsa_encrypter(
+    #         user=user,
+    #         passphrase=passphrase
+    #     )
 
 
     #
@@ -396,20 +381,20 @@ class Node:
     #
     #
     #
-    def send_public_key_to_server(self, s: socket.socket):
-        with open(self._socket["meta"]["rsa"]._pub_path, 'r') as f:
-            fcontents = f.readlines()
-            _nn = fcontents[2].split(',')[-1].strip().encode('utf-8')
-            stripped_key = ''.join(fcontents[4:-1]).encode('utf-8')
+    # def send_public_key_to_server(self, s: socket.socket):
+    #     with open(self._socket["meta"]["rsa"]._pub_path, 'r') as f:
+    #         fcontents = f.readlines()
+    #         _nn = fcontents[2].split(',')[-1].strip().encode('utf-8')
+    #         stripped_key = ''.join(fcontents[4:-1]).encode('utf-8')
 
-        crafted_out = base64.b64encode(
-            b';;'.join([_nn, stripped_key])
-        )
+    #     crafted_out = base64.b64encode(
+    #         b';;'.join([_nn, stripped_key])
+    #     )
 
-        # send public key
-        s.send(crafted_out)
+    #     # send public key
+    #     s.send(crafted_out)
         
-        print(f"Public key sent -- {base64.b64decode(crafted_out)}")
+    #     print(f"Public key sent -- {base64.b64decode(crafted_out)}")
         
 
 
