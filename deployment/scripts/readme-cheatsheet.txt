@@ -53,27 +53,39 @@ kubectl exec \
     -- nmap --iflist
 ******************************************************************************************
 *** Add nodes ips in network to file:
-  kubectl exec \
-      $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
-      -- sh -c "touch /p2p/ips.txt && nmap -n -sn 10.244.1-2.0-255 -oG - \
-              | awk '/Up\$/{print \$2}' \
-              | sort -V \
-              | tee /p2p/ips.txt"
+kubectl exec \
+    $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
+    -- sh -c "touch /p2p/ips.txt && nmap -n -sn 10.244.1-2.0-255 -oG - \
+            | awk '/Up\$/{print \$2}' \
+            | sort -V \
+            | tee /p2p/ips.txt"
 ******************************************************************************************
+
 *** Exec on pod by name prefix:
-  kubectl exec -it \
-      $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
-      -- /bin/sh
+kubectl exec -it \
+    $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
+    -- /bin/sh
+
+kubectl exec -it \
+    $(kubectl get pods -o=name --field-selector=status.phase=Running | grep test-probe) \
+    -- /bin/sh
 
 *** Scan network & save ips to list:
-  nmap -vvv -n -sn 10.244.1-2.0-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+nmap -vvv -n -sn 10.244.1-2.0-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+
+
 
 *** Attach to pod by name prefix:
-  kubectl attach -it \
-      $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node)
+kubectl attach -it \
+    $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node)
+
+kubectl attach -it \
+    $(kubectl get pods -o=name --field-selector=status.phase=Running | grep test-probe)
+
+
 
 *** Get service ports:
-  kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+'
+kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+'
 ******************************************************************************************
 curl -vvv --insecure --user registryadmin:registrypassword https://192.168.1.61:47443
 curl -vvv --insecure --user registryadmin:registrypassword http://192.168.1.61:47880

@@ -136,138 +136,32 @@ spec:
 ###################################### 
 # TEST POD                           #
 # ####################################
-# apiVersion: v1
-# kind: Pod
-# metadata:
-#   namespace: {{ .Values.namespace }}
-#   name: {{ .Values.node0App }}
-#   labels:
-#     app: {{ .Values.node0App }}
-#     app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#   annotations:
-#     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-# spec:
-#   containers:
-#   - name: node-0-test
-#     image: {{ .Values.node0Image }}
-#     tty: true
-#     stdin: true
-#     ports:
-#     - containerPort: {{ .Values.testnodeContainerPort1 }}
-#     - containerPort: {{ .Values.testnodeContainerPort2 }}
-#     imagePullPolicy: IfNotPresent
-#     resources:
-#       limits:
-#         cpu: {{ .Values.limitsCpu }}
-#         memory: {{ .Values.limitsMemory }}
-#       requests:
-#         cpu: {{ .Values.requestsCpu }}
-#         memory: {{ .Values.requestsMemory }}
-
-# ---
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   namespace: {{ .Values.namespace }}
-#   name: p2p-http-backend
-#   annotations:
-#     kubernetes.io/ingress.class: "nginx"
-#     nginx.ingress.kubernetes.io/rewrite-target: /$1
-#     nginx.org/proxy-connect-timeout: "30s"
-#     nginx.org/proxy-read-timeout: "20s"
-#   labels:
-#     app: p2p-http-backend
-# spec:
-#   rules:
-#   - host: "p2p-http-backend.lan"
-#     http:
-#       paths:
-#         - path: /
-#           pathType: Prefix
-#           backend:
-#             service:
-#               name: {{ .Values.node0ServiceName }}
-#               port:
-#                 number: 31515
-#         - path: /p2p/0-node
-#           pathType: Prefix
-#           backend:
-#             service:
-#               name: {{ .Values.node0ServiceName }}
-#               port:
-#                 number: 31515
-#         - path: /p2p/bot-node
-#           pathType: Prefix
-#           backend:
-#             service:
-#               name: {{ .Values.botNodeServiceName }}
-#               port:
-#                 number: 31516
-
-
-
-###################
-# DEF NODE
-###################
-#apiVersion: apps/v1
-#kind: Deployment
-#metadata:
-#  namespace: {{ .Values.namespace }}
-#  name: {{ .Values.defNodeApp }}
-#  labels:
-#    app: {{ .Values.defNodeApp }}
-#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#  annotations:
-#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-#spec:
-#  replicas: 30
-#  selector:
-#    matchLabels:
-#      app: {{ .Values.defNodeApp }}
-#  template:
-#    metadata:
-#      labels:
-#        app: {{ .Values.defNodeApp }}
-#    spec:
-#      containers:
-#      - name: {{ .Values.defNodeApp }}
-#        image: {{ .Values.defNodeImage }}
-#        command: ["/bin/sh"]
-#        args: ["-c", "/node-entrypoint.sh"]
-#        tty: true
-#        stdin: true
-#        ports:
-#        - containerPort: {{ .Values.defNodeContainerPort }}
-#        imagePullPolicy: IfNotPresent
-#        resources:
-#          limits:
-#            cpu: {{ .Values.limitsCpu }}
-#            memory: {{ .Values.limitsMemory }}
-#          requests:
-#            cpu: {{ .Values.requestsCpu }}
-#            memory: {{ .Values.requestsMemory }}
-
-
-#---
-#apiVersion: v1
-#kind: Service
-#metadata:
-#  namespace: {{ .Values.namespace }}
-#  name: {{ .Values.defNodeServiceName }}
-#  labels:
-#    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#  annotations:
-#    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-#spec:
-#  type: {{ .Values.serviceType }}
-#  selector:
-#    app: {{ .Values.defNodeApp }}
-#  ports:
-#    - protocol: {{ .Values.serviceProtocol }}
-#      port: {{ .Values.defNodeContainerPort }}
-#      targetPort: {{ .Values.defNodeServicePort }}
-
-
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.testnodePod }}
+  labels:
+    app: {{ .Values.node0App }}
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+spec:
+  containers:
+  - name: {{ .Values.testnodePod }}
+    image: {{ .Values.node0Image }}
+    stdin: {{ .Values.stdin }}
+    tty: {{ .Values.tty }}
+    ports:
+    - containerPort: {{ .Values.testnodePodPort1 }}
+    - containerPort: {{ .Values.testnodePodPort2 }}
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: {{ .Values.limitsCpu }}
+        memory: {{ .Values.limitsMemory }}
+      requests:
+        cpu: {{ .Values.requestsCpu }}
+        memory: {{ .Values.requestsMemory }}

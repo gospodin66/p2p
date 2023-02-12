@@ -1,58 +1,29 @@
-#!/bin/sh
+#!/bin/bash
 
-PROJECTS_PATH="/home/${USER}/projects"
+ns="p2p"
+chart="p2p-net"
+path_prefix="/home/${USER}/projects/p2p/"
+node0=("p2p-0-node:1.0" "../Dockerfile-0-node")
+bot_node=("p2p-bot-node:1.0" "../Dockerfile-bot-node")
 
 printf '%s\n' "--- building docker images.."
-if ! docker image build -t p2p-0-node:1.0   -f ../Dockerfile-0-node   $PROJECTS_PATH/p2p/ || \
-   ! docker image build -t p2p-bot-node:1.0 -f ../Dockerfile-bot-node $PROJECTS_PATH/p2p/
+if ! docker image build -t ${node0[0]} -f ${node0[1]} $path_prefix || \
+   ! docker image build -t ${bot_node[0]} -f ${bot_node[1]} $path_prefix
 then
     printf '%s\n\n' "--- error building docker images ---"
     exit 1
-else
-    printf '%s\n\n' "--- done ---"
 fi
 
 printf '%s\n' "--- loading docker images to kind.."
-if ! kind load docker-image p2p-0-node:1.0 || ! kind load docker-image p2p-bot-node:1.0
+if ! kind load docker-image ${node0[0]} || ! kind load docker-image ${bot_node[0]}
 then
-    printf '%s\n\n' "--- error loading docker images to kind: \
-    p2p-def-node: $k_cmd_1 \
-    p2p-0-node: $k_cmd_2 \
-    p2p-bot-node: $k_cmd_3 \
-    ---"
+    printf '%s\n\n' "--- error loading docker images to kind cluster."
     exit 1
-else
-    printf '%s\n\n' "--- done ---"
 fi
 
-kubectl create namespace p2p 2>/dev/null
-kubectl config set-context --current --namespace=p2p
-
-################ HELM ###############
+kubectl create namespace ${ns} 2>/dev/null
+kubectl config set-context --current --namespace=${ns}
 
 printf '%s\n\n' "--- installing chart ---"
-helm install p2p-net -f ../p2p-net/values.yaml ../p2p-net
+helm install ${chart} -f ../${chart}/values.yaml ../${chart}
 printf '%s\n\n' "--- done ---"
-
-############## MINIKUBE #############
-# printf '%s\n' "--- deploying 0.."
-# NODE_0_DEPLOYMENT_PATH=$(find node-0.yaml ${PROJECTS_PATH} -name "node-0.yaml" -type f 2>/dev/null)
-# if ! kubectl apply -f "$NODE_0_DEPLOYMENT_PATH"
-# then
-#     printf '%s\n\n' "--- error deploying node-0 ---"
-#     exit 1
-# else
-#     printf '%s\n\n' "--- done ---"
-#     sleep 5
-# fi
-
-# printf '%s\n' "--- deploying nodes.."
-# DEPLOYMENT_PATH=$(find node-deployment.yaml ${PROJECTS_PATH} -name "node-deployment.yaml" -type f 2>/dev/null)
-# if ! kubectl apply -f "$DEPLOYMENT_PATH"
-# then
-#     printf '%s\n\n' "--- error deploying nodes ---"
-#     exit 1
-# else
-#     printf '%s\n\n' "--- done ---"
-#     exit 0
-# fi
