@@ -163,7 +163,7 @@ class Node:
         
         b64out = "inc-conns:".encode() + b64encode(peerslist.encode())
 
-        print(f"DEBUG: sending list:\r\n{peerslist}\r\n")
+        #print(f"DEBUG: sending list:\r\n{peerslist}\r\n")
 
         temp_list.clear()
         target.sendall(b64out)
@@ -238,10 +238,17 @@ class Node:
 
         t = strftime(c.TIME_FORMAT, localtime())
 
-        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
+        # drop master when searching
+        pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == node_id])
+
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}({pairs_in_list})"
         write_log(out, c)
 
         print(f"{t} :: {out}")
+
+        if pairs_in_list < 2:
+            print(f"did not found ID pair -- reverse-connecting to node..")
+            self.connect_to_node(ip=addr[0], port=45666, c=c)
 
         return 0
 
@@ -362,9 +369,6 @@ class Node:
                 except Exception as e:
                     print(f"error on decoding received data: {e.args[::-1]}")
                     return 0
-
-
-                first_packet = False
 
 
 
