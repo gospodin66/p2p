@@ -17,8 +17,7 @@ import sys
 import socket
 import select
 import subprocess
-import base64
-import os
+import json
 
 from time import strftime, localtime, sleep
 from random import randint
@@ -226,10 +225,19 @@ class Node:
         })
 
         stream_in.append(sock)
-
-
         t = strftime(c.TIME_FORMAT, localtime())
-        print(f"{t} :: connected <<< {addr[0]}:{addr[1]}")
+
+        # drop master when searching
+        pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == node_id])
+
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}({pairs_in_list})"
+
+        print(f"{t} :: {out}")
+
+        if pairs_in_list < 2:
+            print(f"did not found ID pair -- reverse-connecting to node..")
+            self.connect_to_node(ip=addr[0], port=45666)
+
         return 0
 
 
@@ -283,7 +291,7 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
+                # print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
                 for s in stream_in:
                     if s.fileno() == -1:
                         stream_in.remove(s)
@@ -309,7 +317,7 @@ class Node:
                 }
 
                 if not inc:
-                    print(">>> node not found?")
+                    # print(">>> node not found?")
                     return 0
 
                 if self.is_socket_closed(s):
@@ -338,7 +346,10 @@ class Node:
                         break
 
 
-
+                    elif inc_data == "gloc:":
+                        print("Geolocating...")
+                        self.geolocate(ip=inc['node']['ip'])
+                        continue
 
 
                     elif inc_data == "key:":
@@ -396,6 +407,38 @@ class Node:
         
     #     print(f"Public key sent -- {base64.b64decode(crafted_out)}")
         
+
+    
+    #
+    #
+    #
+    def geolocate(self, ip: str) -> int:
+
+        def call_curl(args):
+            process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            return json.loads(stdout.decode('utf-8'))
+
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["type"] == "OUT"
+        }
+        
+        if not target:
+            print(f"target {ip} doesn't exist")
+            return 1
+
+        cmd = ["curl", "https://geolocation-db.com/json/"]
+        data = call_curl(args=cmd)
+
+        link = f"http://www.google.com/maps/place/{data['latitude']},{data['longitude']}"
+
+        print(f"Sending link [{link}] to server..")
+        target["node"]["socket"].send(link.encode('utf-8'))
+
+        return 0
+
 
 
     #

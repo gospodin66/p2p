@@ -47,6 +47,9 @@ def display_options() -> None:
 | cs         | (connections)                       |              |
 | opts       | (list options)                      |              |
 | listconn   | (connect to ips from provided list) |              |
+| reset      | (disconnect all nodes, re-scan net) |              |
+| close      | (disconnect all nodes)              |              |
+| renew      | (re-scan net)                       |              |
 | exit       | (self-expl.)                        |              |
 -------------------------------------------------------------------""")
 

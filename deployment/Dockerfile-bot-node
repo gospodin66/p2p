@@ -3,6 +3,8 @@ FROM python:3.10.5-alpine
 RUN apk update && apk add --no-cache \
                           strace \
                           nano \
+                          curl \
+                          tor \
                           net-tools
                       
 RUN mkdir -m 0700 /p2p/ && \

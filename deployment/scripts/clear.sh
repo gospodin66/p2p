@@ -6,7 +6,7 @@ DOCKER_IMG_BOT="docker.io/library/p2p-bot-node:1.0"
 NAMESPACE="p2p"
 
 printf '%s\n' "--- terminating/removing current stack.."
-kubectl delete po node-0-test-probe
+kubectl delete po node-0-test-probe 2>/dev/null
 kubectl delete deploy p2p-bot-node \
                       p2p-0-node \
                       --namespace=${NAMESPACE} && \

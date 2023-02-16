@@ -7,7 +7,7 @@ RUN apk update && apk add --no-cache \
                           curl \
                           openssh-client \
                           nmap \
-                          proxychains-ng
+                          perl
 
 RUN mkdir -m 0700 /p2p/ && \
     mkdir -p /p2p/cstmcrypt/RSA-keys && \

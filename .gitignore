@@ -15,3 +15,4 @@ deployment/venv/
 RSA-keys/
 AES-keys/
 node-autorun.py
+0-node-log.txt

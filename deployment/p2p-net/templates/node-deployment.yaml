@@ -136,32 +136,33 @@ spec:
 ###################################### 
 # TEST POD                           #
 # ####################################
----
-apiVersion: v1
-kind: Pod
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.testnodePod }}
-  labels:
-    app: {{ .Values.node0App }}
-    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-  annotations:
-    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-spec:
-  containers:
-  - name: {{ .Values.testnodePod }}
-    image: {{ .Values.node0Image }}
-    stdin: {{ .Values.stdin }}
-    tty: {{ .Values.tty }}
-    ports:
-    - containerPort: {{ .Values.testnodePodPort1 }}
-    - containerPort: {{ .Values.testnodePodPort2 }}
-    imagePullPolicy: IfNotPresent
-    resources:
-      limits:
-        cpu: {{ .Values.limitsCpu }}
-        memory: {{ .Values.limitsMemory }}
-      requests:
-        cpu: {{ .Values.requestsCpu }}
-        memory: {{ .Values.requestsMemory }}
+
+# ---
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   namespace: {{ .Values.namespace }}
+#   name: {{ .Values.testnodePod }}
+#   labels:
+#     app: {{ .Values.node0App }}
+#     app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+#   annotations:
+#     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+#     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+# spec:
+#   containers:
+#   - name: {{ .Values.testnodePod }}
+#     image: {{ .Values.node0Image }}
+#     stdin: {{ .Values.stdin }}
+#     tty: {{ .Values.tty }}
+#     ports:
+#     - containerPort: {{ .Values.testnodePodPort1 }}
+#     - containerPort: {{ .Values.testnodePodPort2 }}
+#     imagePullPolicy: IfNotPresent
+#     resources:
+#       limits:
+#         cpu: {{ .Values.limitsCpu }}
+#         memory: {{ .Values.limitsMemory }}
+#       requests:
+#         cpu: {{ .Values.requestsCpu }}
+#         memory: {{ .Values.requestsMemory }}

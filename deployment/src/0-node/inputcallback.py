@@ -27,25 +27,9 @@ def input_callback(inp, args) -> int:
         q.task_done()
         print(f"received in queue -- size {q.qsize()}")
 
-
     if not inp or inp == "":
         print("--- empty input..")
         return 0
-
-    # -------------------------------------------------------------------
-    # | CMD_PREFIX |             DESCRIPTION             |  ARGS        |
-    # -------------------------------------------------------------------
-    # | b          | (broadcast cmd)                     |  cmd         |
-    # | f          | (file(send))                        |  file_path   |
-    # | c          | (connect)                           |  ip:port     |
-    # | dc         | (disconnect)                        |  ip          |
-    # | cmd        | (cmd to node)                       |  ip:port|cmd |
-    # | s          | (send to single node)               |  ip:port|msg |
-    # | cs         | (connections)                       |              |
-    # | opts       | (list options)                      |              |
-    # | listconn   | (connect to ips from provided list) |              |
-    # | exit       | (self-expl.)                        |              |
-    # -------------------------------------------------------------------
 
     if inp[:2] == "b:":
         print(f">>> broadcasting command [{inp[2:]}]")
@@ -67,7 +51,6 @@ def input_callback(inp, args) -> int:
 
         n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
         q.queue.clear()
-        # print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp[:3] == "dc:":
@@ -87,7 +70,6 @@ def input_callback(inp, args) -> int:
             return 0
         n.send_to_node(ip=str(addr[0]), port=int(addr[1]), msg=msg.encode(), c=c, q=q)
         q.queue.clear()
-        # print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp[:4] == "cmd:":
@@ -97,7 +79,6 @@ def input_callback(inp, args) -> int:
             return 0
         n.cmd_to_node(ip=str(addr[0]), port=int(addr[1]), cmd=cmd.encode(), c=c, q=q)
         q.queue.clear()
-        # print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp == "opts:":
@@ -107,11 +88,27 @@ def input_callback(inp, args) -> int:
     elif inp == "listconn:":
         n.conn_from_list(q=q, c=c)
         q.queue.clear()
-        # print(f"cleared queue -- size: {q.qsize()}")
         return 0
 
     elif inp == "cs:":
         n.conninfo()
+        return 0
+
+    elif inp == "reset:":
+        n.reset_connections(q=q)
+        q.queue.clear()
+        return 0
+
+    elif inp =="close:":
+        n.loop_close_all_sockets(q=q)
+        q.queue.clear()
+        return 0
+    
+    elif inp == "renew:":
+        ips_list = ["10.244.1-2.2-255"]
+        output_path = "/p2p/ips.txt"
+        n.renew_ip_list(ips_list=ips_list, output_path=output_path)
+        q.queue.clear()
         return 0
 
     elif inp == "exit:":

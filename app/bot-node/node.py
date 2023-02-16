@@ -19,6 +19,7 @@ import select
 import subprocess
 import base64
 import os
+import json
 
 from time import strftime, localtime, sleep
 from random import randint
@@ -353,8 +354,10 @@ class Node:
                         break
 
 
-
-
+                    elif inc_data == "gloc:":
+                        print("Geolocating...")
+                        self.geolocate(ip=inc['node']['ip'], port=inc['node']['port'])
+                        continue
 
                     elif inc_data == "key:":
                         self.send_public_key_to_server(s=inc['node']['socket'])
@@ -391,6 +394,48 @@ class Node:
                     print(f"{t} :: [{inc['node']['id']}]:[{inc['node']['ip']}:{inc['node']['port']}] :: {inc_data}")
 
         #return 0
+
+
+
+    #
+    #
+    #
+    def geolocate(self, ip: str, port: int) -> int :
+
+        target = {
+            "node": self._tcp_connections[node] \
+                    for node in range(len(self._tcp_connections)) \
+                    if self._tcp_connections[node]["ip"] == ip and self._tcp_connections[node]["type"] == "OUT"
+        }
+        
+        if not target:
+            print(f"target {ip} with type \"OUT\" doesn't exist")
+            return 1
+
+        def call_curl(args):
+            process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            return json.loads(stdout.decode('utf-8'))
+
+        url = "https://geolocation-db.com/json/"
+        cmd = [
+            "curl",
+            "-vvv",
+            "-s",
+            "--socks5-hostname",
+            "127.0.0.1:9050",
+            url
+        ]
+
+        data = call_curl(cmd)
+        print(data)
+
+        link = f"http://www.google.com/maps/place/{data['latitude']},{data['longitude']}"
+        target["node"]["socket"].send(link.encode('utf-8'))
+
+
+        return 0
+
 
 
     #

@@ -1,4 +1,50 @@
 ---
+*** Desc:
+Applicable to ~100 nodes -- (unable to test with more)
+
+(MASTER NODE SHOULD HAVE MASTER SOCKET AFTER CLEANING)
+(BOT SHOULD AUTOMATICALLY DROP EITHER INC|OUT CONNECTIONS IF EITHER IS MISSING)
+
+Consists of:
+    - master (0-node)
+    - bots
+
+Each node acts as both server and client (p2p)
+Each node is directly connected on both ways (INC|OUT)
+
+Master node:
+    - listens for connections
+    - input implemented via separate thread
+    # -------------------------------------------------------------------
+    # | CMD_PREFIX |             DESCRIPTION             |  ARGS        |
+    # -------------------------------------------------------------------
+    # | b          | (broadcast cmd)                     |  cmd         |
+    # | f          | (file(send))                        |  file_path   |
+    # | c          | (connect)                           |  ip:port     |
+    # | dc         | (disconnect)                        |  ip          |
+    # | cmd        | (cmd to node)                       |  ip:port|cmd |
+    # | s          | (send to single node)               |  ip:port|msg |
+    # | cs         | (connections)                       |              |
+    # | opts       | (list options)                      |              |
+    # | listconn   | (connect to ips from provided list) |              |
+    # | reset      | (disconnect all nodes, re-scan net) |              |
+    # | close      | (disconnect all nodes)              |              |
+    # | renew      | (re-scan net)                       |              |
+    # | exit       | (self-expl.)                        |              |
+    # -------------------------------------------------------------------
+    - supports broadcast & direct communication
+    - can geolocate nodes (curl tool needed on bots)
+    - can scan networks & connect to new nodes dynamically (needs fix)
+    - list of connections is shared among threads via queue
+
+Bot node:
+    - listens for connections
+    - executes commands and sends result to master
+    - auto-connects to every new node in network
+    - broadcasts list of connections on each new connection
+
+
+
 ******************************************************************************************
 *** Base setup:
 1. create cluster from p2p/deployment/p2p-net/kind-cluster-config.yaml
@@ -61,6 +107,8 @@ kubectl exec \
             | tee /p2p/ips.txt"
 ******************************************************************************************
 
+
+
 *** Exec on pod by name prefix:
 kubectl exec -it \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
@@ -69,6 +117,8 @@ kubectl exec -it \
 kubectl exec -it \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep test-probe) \
     -- /bin/sh
+
+
 
 *** Scan network & save ips to list:
 nmap -vvv -n -sn 10.244.1-2.0-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
@@ -86,6 +136,8 @@ kubectl attach -it \
 
 *** Get service ports:
 kubectl describe service --namespace=p2p | grep -i nodeport | grep -o -E '[0-9]+'
+
+
 ******************************************************************************************
 curl -vvv --insecure --user registryadmin:registrypassword https://192.168.1.61:47443
 curl -vvv --insecure --user registryadmin:registrypassword http://192.168.1.61:47880
@@ -98,3 +150,7 @@ if [ ! -f $path ]; then wget -O $path http://$remotehost; fi
 if [ ! -f $path ]; then curl -vvv -o $path http://$remotehost; fi
 python $path $host $remotehost
 ******************************************************************************************
+*** Convert plaintext to bin & revert in perl
+
+binary_dump=$(cat $path | perl -lpe '$_=join " ", unpack"(B8)*"')
+plaintext_script=$(echo "$binary_dump" | perl -lape '$_=pack"(B8)*",@F')
