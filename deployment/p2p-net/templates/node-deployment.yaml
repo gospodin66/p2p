@@ -27,8 +27,8 @@ spec:
       containers:
       - name: {{ .Values.botNodeApp }}
         image: {{ .Values.botNodeImage }}
-        command: ["/bin/sh"]
-        args: ["-c", "/node-entrypoint.sh"]
+        # command: ["/bin/sh"]
+        # args: ["-c", "python3 /p2p/node.py 45666"]
         stdin: {{ .Values.stdin }}
         tty: {{ .Values.tty }}
         ports:
@@ -71,8 +71,8 @@ spec:
       containers:
       - name: {{ .Values.node0App }}
         image: {{ .Values.node0Image }}
-        command: ["/bin/sh"]
-        args: ["-c", "/node-entrypoint.sh"]
+        # command: ["/bin/sh"]
+        # args: ["-c, "expect /p2p/assets/automate 45666 \"10.244.1-2.2-255\""]
         stdin: {{ .Values.stdin }}
         tty: {{ .Values.tty }}
         ports:
@@ -137,32 +137,32 @@ spec:
 # TEST POD                           #
 # ####################################
 
-# ---
-# apiVersion: v1
-# kind: Pod
-# metadata:
-#   namespace: {{ .Values.namespace }}
-#   name: {{ .Values.testnodePod }}
-#   labels:
-#     app: {{ .Values.node0App }}
-#     app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
-#   annotations:
-#     meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
-#     meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
-# spec:
-#   containers:
-#   - name: {{ .Values.testnodePod }}
-#     image: {{ .Values.node0Image }}
-#     stdin: {{ .Values.stdin }}
-#     tty: {{ .Values.tty }}
-#     ports:
-#     - containerPort: {{ .Values.testnodePodPort1 }}
-#     - containerPort: {{ .Values.testnodePodPort2 }}
-#     imagePullPolicy: IfNotPresent
-#     resources:
-#       limits:
-#         cpu: {{ .Values.limitsCpu }}
-#         memory: {{ .Values.limitsMemory }}
-#       requests:
-#         cpu: {{ .Values.requestsCpu }}
-#         memory: {{ .Values.requestsMemory }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.testnodePod }}
+  labels:
+    app: {{ .Values.node0App }}
+    app.kubernetes.io/managed-by: {{ .Values.labelManagedBy }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Values.annotationReleaseName }}
+    meta.helm.sh/release-namespace: {{ .Values.annotationReleaseNamespace }}
+spec:
+  containers:
+  - name: {{ .Values.testnodePod }}
+    image: {{ .Values.testnodeImage }}
+    stdin: {{ .Values.stdin }}
+    tty: {{ .Values.tty }}
+    ports:
+    - containerPort: {{ .Values.testnodePodPort1 }}
+    - containerPort: {{ .Values.testnodePodPort2 }}
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: {{ .Values.limitsCpu }}
+        memory: {{ .Values.limitsMemory }}
+      requests:
+        cpu: {{ .Values.requestsCpu }}
+        memory: {{ .Values.requestsMemory }}

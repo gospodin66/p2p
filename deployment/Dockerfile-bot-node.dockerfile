@@ -12,10 +12,10 @@ RUN mkdir -m 0700 /p2p/ && \
     mkdir -p /p2p/cstmcrypt/AES-keys
 
 COPY ./deployment/src/bot-node/ /p2p/
+COPY ./deployment/docker-entrypoint.sh /entrypoint.sh
 
-RUN chmod 0700 /p2p/node.py
+RUN chmod 0700 /p2p/node.py && \
+    chmod 0700 /entrypoint.sh
 
-COPY ./deployment/bot-node-entrypoint.sh /node-entrypoint.sh
-RUN chmod 0700 /node-entrypoint.sh
-
-# ENTRYPOINT ["python3", "/p2p/node.py", "45666", "p2p-0-node-connector:45555"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "python3", "/p2p/node.py", "45666" ]

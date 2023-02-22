@@ -34,6 +34,7 @@ Master node:
     # -------------------------------------------------------------------
     - supports broadcast & direct communication
     - can geolocate nodes (curl tool needed on bots)
+    - can deploy new bot via HTTP (needs fix)
     - can scan networks & connect to new nodes dynamically (needs fix)
     - list of connections is shared among threads via queue
 

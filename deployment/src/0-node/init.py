@@ -11,30 +11,20 @@ from node_fnc import _Const, validate_ip_port
 from inputcallback import input_callback
 
 def main():
+
+    queue_size = 512
     _argc = len(sys.argv)
-    # ip:port provided
-    if _argc == 2:
-        host = sys.argv[1].split(':')
-        ip, port = (str(host[0]), int(host[1]))
-        if validate_ip_port(ip, port) != 0:
-            print(f"invalid ip:port.")
-            exit(1)
-    # no args
-    else:
-        default_port = 45666
-        if _argc == 1:
-            # assign default host ip & port
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
-            print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
-        else:
-            print("invalid arguments")
-            exit(1)
+    
+    ip, port = (str(socket.gethostbyname(socket.gethostname())), int(sys.argv[1])) \
+        if _argc == 2 \
+            else (str(socket.gethostbyname(socket.gethostname())), 45666)
 
     if validate_ip_port(ip, port) != 0:
+        print(f"invalid ip:port.")
         exit(1)
     
     n = Node(ip, port)
-    q = Queue(512)
+    q = Queue(queue_size)
     c = _Const()
 
     # init non-blocking input thr

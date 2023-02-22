@@ -7,19 +7,21 @@ RUN apk update && apk add --no-cache \
                           curl \
                           openssh-client \
                           nmap \
-                          perl
+                          perl \
+                          expect
 
 RUN mkdir -m 0700 /p2p/ && \
     mkdir -p /p2p/cstmcrypt/RSA-keys && \
     mkdir -p /p2p/cstmcrypt/AES-keys
 
 COPY ./deployment/src/0-node /p2p/
+COPY ./deployment/docker-entrypoint.sh /entrypoint.sh
 
 RUN touch /p2p/ips.txt && \
     chmod 0700 /p2p/init.py && \
-    chmod 0666 /p2p/ips.txt
+    chmod 0600 /p2p/ips.txt && \
+    chmod 0700 /p2p/assets/automate && \
+    chmod 0700 /entrypoint.sh
 
-COPY ./deployment/0-node-entrypoint.sh /node-entrypoint.sh
-RUN chmod 0700 /node-entrypoint.sh
-
-# ENTRYPOINT ["python3", "/p2p/init.py"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "expect", "/p2p/assets/automate", "45666", "10.244.1-2.2-255" ]

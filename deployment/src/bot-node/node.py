@@ -665,43 +665,18 @@ def validate_ip_port(ip: str, port: int) -> int:
 #
 def main():
     _argc = len(sys.argv)
-    # ip:port provided
-    if _argc >= 2:
-        host = sys.argv[1].split(':')
 
-        if len(host) == 2:
-            # specified host
-            ip, port = (str(host[0]), int(host[1]))
-        elif len(host) == 1:
-            # default host
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), int(host[0]))
-        else:
-            print(f"invalid host (ip:port): {host}")
-            exit(1)
+    ip, port = (str(socket.gethostbyname(socket.gethostname())), int(sys.argv[1])) \
+        if _argc == 2 \
+            else (str(socket.gethostbyname(socket.gethostname())), 45666)
 
-        if validate_ip_port(ip, port) != 0:
-            print(f"invalid host (ip:port): {host}")
-            exit(1)
-
-        # initial target provided
-        if _argc == 3:
-            rn_0 = sys.argv[2].split(':')
-            ip_0, port_0 = (str(rn_0[0]), int(rn_0[1]))
-        else:
-            ip_0, port_0 = (None, None)
-
-    # no args
+    if _argc == 3:
+        # initial target provided    
+        rn_0 = sys.argv[2].split(':')
+        ip_0, port_0 = (str(rn_0[0]), int(rn_0[1]))
     else:
-        default_port = 45666
         ip_0, port_0 = (None, None)
 
-        if _argc == 1:
-            # assign default host ip & port
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
-            print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
-        else:
-            print("invalid arguments")
-            exit(1)
 
     n = Node(ip, port)
     c = _Const()

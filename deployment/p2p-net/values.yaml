@@ -34,6 +34,8 @@ botNodeServiceName: p2p-bot-node-connector
 botNodePort: 31516
 botNodeReplicas: 8
 #
+
 testnodePodPort1: 45666
 testnodePodPort2: 45667
-testnodePod: node-0-test-probe
+testnodePod: test-probe
+testnodeImage: docker.io/library/p2p-probe-node:1.0
