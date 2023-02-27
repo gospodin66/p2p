@@ -49,7 +49,7 @@ def input_callback(inp, args) -> int:
         if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 0
 
-        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
+        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
         q.queue.clear()
         return 0
 

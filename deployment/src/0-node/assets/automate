@@ -1,0 +1,23 @@
+#!/usr/bin/expect
+
+# run script:
+#   ./automate `hostname -i` 45777 "10.244.1-2.2-255"
+
+set port [lindex $argv 0]
+set net [lindex $argv 1]
+
+set out_path "/p2p/ips.txt"
+set script "/p2p/init.py"
+
+puts "Scanning net -- $net --"
+exec sh -c "nmap -n -sn $net -oG - | awk '/Up\$/{print \$2}' | sort -V | tee $out_path"
+
+puts "Running node.."
+spawn python3 $script $port
+
+expect "*>>>*"
+send "listconn:\r"
+expect eof
+interact
+
+exit 0

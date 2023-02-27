@@ -8,9 +8,9 @@ bot_node=("p2p-bot-node:1.0" "../Dockerfile-bot-node.dockerfile")
 probe_node=("p2p-probe-node:1.0" "../Dockerfile-probe.dockerfile")
 
 printf '%s\n' "--- building docker images.."
-if ! docker image build -t ${node0[0]} -f ${node0[1]} $path_prefix || \
-   ! docker image build -t ${bot_node[0]} -f ${bot_node[1]} $path_prefix || \
-   ! docker image build -t ${probe_node[0]} -f ${probe_node[1]} $path_prefix 
+if ! DOCKER_BUILDKIT=1 docker image build -t ${node0[0]} -f ${node0[1]} $path_prefix || \
+   ! DOCKER_BUILDKIT=1 docker image build -t ${bot_node[0]} -f ${bot_node[1]} $path_prefix || \
+   ! DOCKER_BUILDKIT=1 docker image build -t ${probe_node[0]} -f ${probe_node[1]} $path_prefix 
 then
     printf '%s\n\n' "--- error building docker images ---"
     exit 1

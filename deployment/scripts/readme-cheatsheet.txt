@@ -108,6 +108,9 @@ kubectl exec \
             | tee /p2p/ips.txt"
 ******************************************************************************************
 
+*** Scale replicas:
+    kubectl scale deployment/p2p-bot-node --replicas=1
+
 
 
 *** Exec on pod by name prefix:
