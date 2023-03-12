@@ -11,6 +11,13 @@
 #######################################################################
 #######################################################################
 
+###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly
+
+###### TODO: implement global list of peers which will be redistributed among peers (obfuscate node-0 => tunnel?)
+
+###### TODO: implement encryption 
+
+
 import socket
 import select
 import tcp_http
@@ -276,11 +283,7 @@ class Node:
                         if addr[0] == self._tcp_connections[i]["ip"]
         }
 
-        if target:
-            node_id = target["id"]
-        else:
-            print(f"[!] unable to find node_id for INC target: {target}")
-            node_id = str(randint(10000000, 99999999))
+        node_id = target["id"] if target else str(randint(10000000, 99999999))
 
         self._tcp_connections.append({
             "id": node_id,
@@ -460,8 +463,7 @@ class Node:
                     #
                     else:
                         # chec if bidirectional (2 sockets)
-                        pairs_in_list = len([n for n in self._tcp_connections[1:] 
-                                                if n['id'] == inc['node']['node_id']])
+                        pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == inc['node']['id']])
                         if pairs_in_list != 0 and pairs_in_list < 2:
                             print(f"[!] did not found ID pair -- reverse-connecting to node..")
                             self.connect_to_node(ip=inc['node']['ip'], port=45666, q=q, c=c)
@@ -769,16 +771,3 @@ class Node:
         except Exception as e:
             print(f"error on file.read() in conn_from_list(): {e.args[::-1]}")
     
-
-
-
-
-###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly
-
-###### TODO: implement global list of peers which will be redistributed among peers (obfuscate node-0 => tunnel?)
-
-###### TODO: implement encryption 
-
-
-
-

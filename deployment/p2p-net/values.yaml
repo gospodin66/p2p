@@ -32,7 +32,7 @@ botNodeServicePort: 45661
 botNodeContainerPort: 45666
 botNodeServiceName: p2p-bot-node-connector
 botNodePort: 31516
-botNodeReplicas: 20
+botNodeReplicas: 10
 #
 
 testnodePodPort1: 45666

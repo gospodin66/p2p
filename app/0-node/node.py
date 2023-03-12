@@ -11,9 +11,18 @@
 #######################################################################
 #######################################################################
 
+###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly
+
+###### TODO: implement global list of peers which will be redistributed among peers (obfuscate node-0 => tunnel?)
+
+###### TODO: implement encryption 
+
+
 import socket
 import select
 import tcp_http
+import subprocess
+import errno
 
 from node_fnc import _Const, write_log, isbase64, validate_ip_port
 from queue import Queue
@@ -22,6 +31,7 @@ from re import search as regex_search
 from time import strftime, localtime, sleep
 from random import randint
 from base64 import b64encode, b64decode
+from typing import Union
 
 # Console colors
 W = '\033[0m'  # white (normal)
@@ -78,7 +88,7 @@ class Node:
     #
     # connect to peer
     #
-    def connect_to_node(self, ip: str, port: int, c: _Const) -> int:
+    def connect_to_node(self, ip: str, port: int, q: Queue, c: _Const) -> int:
         target = {
             "id": self._tcp_connections[i]["id"] \
                     for i in range(len(self._tcp_connections)) \
@@ -119,25 +129,79 @@ class Node:
         self._tcp_connections.append(conn_socket)
         self.send_list(target=conn_socket["socket"])
 
-
-
-
-
-
-        # sleep(0.5)
-        # conn_socket["socket"].send("key:".encode('utf-8'))
-
-
-
-
-
-
         out = f"connected {'':<5}>>> {conn_socket['ip']}:{conn_socket['port']}"
         write_log(out, c)
 
         print(f"{t} :: {out}")
+        q.put_nowait(self._tcp_connections)
 
         return 0
+
+
+
+    #
+    #
+    #
+    def renew_ip_list(self, ips_list: list, output_path: str) -> list:
+        print(f"Scanning networks: {ips_list}")
+        try:
+            subprocess.run([
+                    "sh", 
+                    "-c", 
+                    "nmap -n -sn "+' '.join(ips_list)+" -oG - | awk '/Up$/{print $2}' | sort -V | tee "+str(output_path)
+                ],
+                capture_output=True,
+                timeout=60,
+                check=True
+            )
+        except FileNotFoundError as exc:
+            print(f"Process failed because the executable could not be found.\n{exc}")
+            return []
+        except subprocess.CalledProcessError as exc:
+            print(
+                f"Process failed because did not return a successful return code. "
+                f"Returned {exc.returncode}\n{exc}"
+            )
+            return []
+        except subprocess.TimeoutExpired as exc:
+            print(f"Process timed out.\n{exc}")
+            return []
+
+        nodes = []
+        with open(output_path, 'r') as f:
+            nodes = f.read()
+
+        print("Networks scanned -- ips list updated.")
+
+        return nodes
+
+
+
+    def remote_connection_closed(self, sock: socket.socket) -> bool:
+        """
+        Returns True if the remote side did close the connection
+
+        """
+        try:
+            buf = sock.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT)
+            if buf == b'':
+                return True
+        except BlockingIOError as exc:
+            if exc.errno != errno.EAGAIN:
+                # Raise on unknown exception
+                raise
+        return False
+
+
+    #
+    #
+    #
+    def reset_connections(self, q: Queue):
+        ips_list = ["10.244.1-2.2-255"]
+        output_path = "/p2p/ips.txt"
+
+        self.loop_close_all_sockets(q=q)
+        self.renew_ip_list(ips_list=ips_list, output_path=output_path)
 
 
     #
@@ -163,7 +227,7 @@ class Node:
         
         b64out = "inc-conns:".encode() + b64encode(peerslist.encode())
 
-        #print(f"DEBUG: sending list:\r\n{peerslist}\r\n")
+        # print(f"DEBUG: sending list:\r\n{peerslist}\r\n")
 
         temp_list.clear()
         target.sendall(b64out)
@@ -241,14 +305,15 @@ class Node:
         # drop master when searching
         pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == node_id])
 
-        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}({pairs_in_list})"
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
         write_log(out, c)
 
         print(f"{t} :: {out}")
 
         if pairs_in_list < 2:
             print(f"did not found ID pair -- reverse-connecting to node..")
-            self.connect_to_node(ip=addr[0], port=45666, c=c)
+            self.connect_to_node(ip=addr[0], port=45666, q=q, c=c)
+
 
         return 0
 
@@ -258,17 +323,14 @@ class Node:
     #
     def loop_connect_nodes(self, peer_list: str, q: Queue, c: _Const) -> None:
 
-        peer_list_arr = peer_list.split("\n")
+        peer_list_arr = peer_list.splitlines()
         peers_len = range(len(peer_list_arr))
 
         for node in peers_len:
-            
             if not isinstance(node, str):
-                # print("skipping int value - DEBUG: ", peer_list_arr)
                 continue
 
             node = node.strip()
-
             ip = node[:(node.find(':'))]
             port = int(node[(node.find(':') +1):])
             
@@ -293,10 +355,8 @@ class Node:
             if validate_ip_port(ip=ip, port=port):
                 continue
 
-            self.connect_to_node(ip=ip, port=port, c=c)
+            self.connect_to_node(ip=ip, port=port, q=q, c=c)
             
-        q.put_nowait(self._tcp_connections)
-
 
     #
     # handle recv from stream_select
@@ -351,6 +411,7 @@ class Node:
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                     continue
 
+                # get data
                 try:
                     inc_data = inc['node']['socket'].recv(c.BUFFER_SIZE)
                 except socket.error as e:
@@ -370,57 +431,50 @@ class Node:
                     print(f"error on decoding received data: {e.args[::-1]}")
                     return 0
 
-
-
-
                 if inc_data:
-                    
                     t = strftime(c.TIME_FORMAT, localtime())
-
                     #
-                    # drop blacklisted requests => 403
+                    # HTTP (plaintext) => auto-response over same socket
                     #
-                    blacklist = tcp_http.get_blacklist()
-                    break_continue = False
-
-                    for request_path in blacklist:
-                        if regex_search(f"{request_path}", inc_data):
-                            print(f"dropping blacklisted request: {request_path}")
-                            
-                            headers_arr = tcp_http.set_http_headers()
-                            headers_str = "\r\n".join(str(header) for header in headers_arr)
-
-                            response = f"HTTP/1.1 403 Forbidden\r\n{headers_str}\r\n"
-
-                            s.send(response.encode('utf-8'))
-                            self.close_socket(s=s, ssi=stream_in, q=q, c=c)
-                            break_continue = True
-                            break
-                    if break_continue:
-                        continue
-                    
-                    #
-                    # http (plaintext) => auto-response over same socket
-                    #
-                    if regex_search("^(GET|POST){1}\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
+                    if self.check_http_request(data=inc_data):
+                        # drop blacklisted requests => 403
+                        blacklist = tcp_http.get_blacklist()
+                        break_continue = False
+                        for request_path in blacklist:
+                            if regex_search(f"{request_path}", inc_data):
+                                print(f"dropping blacklisted request: {request_path}")
+                                headers_arr = tcp_http.set_http_headers()
+                                headers_str = "\r\n".join(str(header) for header in headers_arr)
+                                response = f"HTTP/1.1 403 Forbidden\r\n{headers_str}\r\n"
+                                s.send(response.encode('utf-8'))
+                                self.close_socket(s=s, ssi=stream_in, q=q, c=c)
+                                break_continue = True
+                                break
+                        if break_continue:
+                            # do not print blacklisted requests
+                            continue
                         # craft & send HTTP response to target
                         response = tcp_http.craft_http_response(inc_data)
                         s.send(response.encode('utf-8'))
                         # close socket for response to be received and rendered at endpoint
-                        self.close_socket(s=s, ssi=[], q=q, c=c)
-
+                        self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
-
                         output = f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{data_formatted}{END}"
-
                         print(output)
-
                         write_log(output, c)
-
                     #
-                    # tcp (bytes)
+                    # NON-HTTP (pure tcp)
                     #
                     else:
+                        # chec if bidirectional (2 sockets)
+                        pairs_in_list = len([n for n in self._tcp_connections[1:] 
+                                                if n['id'] == inc['node']['id']])
+                        if pairs_in_list != 0 and pairs_in_list < 2:
+                            print(f"[!] did not found ID pair -- reverse-connecting to node..")
+                            self.connect_to_node(ip=inc['node']['ip'], port=45666, q=q, c=c)
+                        #
+                        # tcp (bytes)
+                        #
                         if inc_data == "exit:":
                             self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                             break
@@ -455,10 +509,17 @@ class Node:
                             inc_data = inc_data.decode()
 
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
-
                         print(f"{t} :: [{inc['node']['id']}]:[{inc['node']['ip']}:{inc['node']['port']}] :: {R}{data_formatted}{END}")
 
         #return 0
+
+
+    #
+    #
+    #
+    def check_http_request(self, data: str) -> Union[str, None]:
+        http_request_methods=["GET","POST"]
+        return regex_search("^("+'|'.join(http_request_methods)+"){1}\s{1}/[a-zA-Z0-9 -.]*\s{1}HTTP/1.1", data)
 
 
     #
@@ -505,7 +566,6 @@ class Node:
         else:
             print(f">>> error! sockets not closed for ip [{ip}]")
 
-
     #
     # close socket | remove from lists | re-send new list to stream_in thread
     # ssi => stream-select-inputs list
@@ -536,16 +596,16 @@ class Node:
                     
                 print("[!] node was not in list!")
                 break
+
         q.put_nowait(self._tcp_connections)
 
 
     #
     # close master socket & clear connections list
     #
-    def close_master_socket(self) -> None:
-        connections = self._tcp_connections
+    def close_master_socket(self, q: Queue) -> None:
         t = strftime("%Y-%m-%d %I:%M:%S %p", localtime())
-        self.loop_close_all_sockets()
+        self.loop_close_all_sockets(q=q)
         self._socket["socket"].shutdown(socket.SHUT_RDWR)
         self._socket["socket"].close()
         print("disconnected all clients..\nmaster socket closed!")
@@ -554,23 +614,18 @@ class Node:
     #
     #
     #
-    def loop_close_all_sockets(self) -> None:
-
+    def loop_close_all_sockets(self, q: Queue) -> None:
         inc_type_port, out_type_port = (0, 0)
-
         while len(self._tcp_connections) > 0:
-
             # always grab 1st element of the list sequentially
             tcp_conn = self._tcp_connections.pop(0)
             ip = tcp_conn["ip"]
             operation_success=False
-
             # close "OUT" socket
             for node in range(len(self._tcp_connections)):
                 if self._tcp_connections[node]["ip"] == ip:
                     if self._tcp_connections[node]["type"] == "OUT":
                         out_type_port = int(self._tcp_connections[node]["port"])
-
                     if self._tcp_connections[node]["ip"] == ip \
                     and (out_type_port > 0 and self._tcp_connections[node]["port"] == out_type_port) \
                     and self._tcp_connections[node]["type"] == "OUT":
@@ -581,14 +636,12 @@ class Node:
                         self._tcp_connections[node]["socket"].close()
                         del self._tcp_connections[node]
                         break
-
             # close "INC" socket
             for node in range(len(self._tcp_connections)):
                 if self._tcp_connections[node]["ip"] == ip:
                     # get "INC" socket port
                     if self._tcp_connections[node]["type"] == "INC":
                         inc_type_port = int(self._tcp_connections[node]["port"])
-
                     if self._tcp_connections[node]["ip"] == ip \
                     and (inc_type_port > 0 and self._tcp_connections[node]["port"] == inc_type_port) \
                     and self._tcp_connections[node]["type"] == "INC":
@@ -606,7 +659,8 @@ class Node:
                 sleep(0.5)
             else:
                 print(f">>> error! sockets not closed for ip [{ip}]")
-
+                
+            q.put_nowait(self._tcp_connections)
 
 
     #
@@ -716,23 +770,9 @@ class Node:
                     port = 45666
 
                     print(f"[!] connecting to peer {ip}:{port}")
-                    self.connect_to_node(ip=ip, port=port, c=c)
-                    q.put_nowait(self._tcp_connections)
+                    self.connect_to_node(ip=ip, port=port, q=q, c=c)
                     sleep(0.5)
 
         except Exception as e:
             print(f"error on file.read() in conn_from_list(): {e.args[::-1]}")
     
-
-
-
-
-###### TODO: implement a function to check on nodes connections (broadcast ping) & clear list accordingly
-
-###### TODO: implement global list of peers which will be redistributed among peers (obfuscate node-0 => tunnel?)
-
-###### TODO: implement encryption 
-
-
-
-

