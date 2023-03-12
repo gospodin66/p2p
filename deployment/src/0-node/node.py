@@ -15,6 +15,7 @@ import socket
 import select
 import tcp_http
 import subprocess
+import errno
 
 from node_fnc import _Const, write_log, isbase64, validate_ip_port
 from queue import Queue
@@ -23,6 +24,7 @@ from re import search as regex_search
 from time import strftime, localtime, sleep
 from random import randint
 from base64 import b64encode, b64decode
+from typing import Union
 
 # Console colors
 W = '\033[0m'  # white (normal)
@@ -167,6 +169,23 @@ class Node:
         return nodes
 
 
+
+    def remote_connection_closed(self, sock: socket.socket) -> bool:
+        """
+        Returns True if the remote side did close the connection
+
+        """
+        try:
+            buf = sock.recv(1, socket.MSG_PEEK | socket.MSG_DONTWAIT)
+            if buf == b'':
+                return True
+        except BlockingIOError as exc:
+            if exc.errno != errno.EAGAIN:
+                # Raise on unknown exception
+                raise
+        return False
+
+
     #
     #
     #
@@ -279,7 +298,7 @@ class Node:
         # drop master when searching
         pairs_in_list = len([n for n in self._tcp_connections[1:] if n['id'] == node_id])
 
-        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}({pairs_in_list})"
+        out = f"connected {'':<5}<<< {addr[0]}:{addr[1]}"
         write_log(out, c)
 
         print(f"{t} :: {out}")
@@ -287,6 +306,7 @@ class Node:
         if pairs_in_list < 2:
             print(f"did not found ID pair -- reverse-connecting to node..")
             self.connect_to_node(ip=addr[0], port=45666, q=q, c=c)
+
 
         return 0
 
@@ -384,6 +404,7 @@ class Node:
                     self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                     continue
 
+                # get data
                 try:
                     inc_data = inc['node']['socket'].recv(c.BUFFER_SIZE)
                 except socket.error as e:
@@ -403,60 +424,50 @@ class Node:
                     print(f"error on decoding received data: {e.args[::-1]}")
                     return 0
 
-
-                first_packet = False
-
-
-
-
                 if inc_data:
-                    
                     t = strftime(c.TIME_FORMAT, localtime())
-
                     #
-                    # drop blacklisted requests => 403
+                    # HTTP (plaintext) => auto-response over same socket
                     #
-                    blacklist = tcp_http.get_blacklist()
-                    break_continue = False
-
-                    for request_path in blacklist:
-                        if regex_search(f"{request_path}", inc_data):
-                            print(f"dropping blacklisted request: {request_path}")
-                            
-                            headers_arr = tcp_http.set_http_headers()
-                            headers_str = "\r\n".join(str(header) for header in headers_arr)
-
-                            response = f"HTTP/1.1 403 Forbidden\r\n{headers_str}\r\n"
-
-                            s.send(response.encode('utf-8'))
-                            self.close_socket(s=s, ssi=stream_in, q=q, c=c)
-                            break_continue = True
-                            break
-                    if break_continue:
-                        continue
-                    
-                    #
-                    # http (plaintext) => auto-response over same socket
-                    #
-                    if regex_search("^(GET|POST){1}\s{1}/[a-zA-Z0-9]*\s{1}HTTP/1.1", inc_data):
+                    if self.check_http_request(data=inc_data):
+                        # drop blacklisted requests => 403
+                        blacklist = tcp_http.get_blacklist()
+                        break_continue = False
+                        for request_path in blacklist:
+                            if regex_search(f"{request_path}", inc_data):
+                                print(f"dropping blacklisted request: {request_path}")
+                                headers_arr = tcp_http.set_http_headers()
+                                headers_str = "\r\n".join(str(header) for header in headers_arr)
+                                response = f"HTTP/1.1 403 Forbidden\r\n{headers_str}\r\n"
+                                s.send(response.encode('utf-8'))
+                                self.close_socket(s=s, ssi=stream_in, q=q, c=c)
+                                break_continue = True
+                                break
+                        if break_continue:
+                            # do not print blacklisted requests
+                            continue
                         # craft & send HTTP response to target
                         response = tcp_http.craft_http_response(inc_data)
                         s.send(response.encode('utf-8'))
                         # close socket for response to be received and rendered at endpoint
-                        self.close_socket(s=s, ssi=[], q=q, c=c)
-
+                        self.close_socket(s=s, ssi=stream_in, q=q, c=c)
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
-
                         output = f"{t} :: [{inc['node']['ip']}:{inc['node']['port']}] :: {B}{data_formatted}{END}"
-
                         print(output)
-
                         write_log(output, c)
-
                     #
-                    # tcp (bytes)
+                    # NON-HTTP (pure tcp)
                     #
                     else:
+                        # chec if bidirectional (2 sockets)
+                        pairs_in_list = len([n for n in self._tcp_connections[1:] 
+                                                if n['id'] == inc['node']['node_id']])
+                        if pairs_in_list != 0 and pairs_in_list < 2:
+                            print(f"[!] did not found ID pair -- reverse-connecting to node..")
+                            self.connect_to_node(ip=inc['node']['ip'], port=45666, q=q, c=c)
+                        #
+                        # tcp (bytes)
+                        #
                         if inc_data == "exit:":
                             self.dc_node(ip=inc['node']['ip'], q=q, c=c)
                             break
@@ -491,10 +502,17 @@ class Node:
                             inc_data = inc_data.decode()
 
                         data_formatted = inc_data.replace("\r\n", f"\r\n{'':<46}")
-
                         print(f"{t} :: [{inc['node']['id']}]:[{inc['node']['ip']}:{inc['node']['port']}] :: {R}{data_formatted}{END}")
 
         #return 0
+
+
+    #
+    #
+    #
+    def check_http_request(self, data: str) -> Union[str, None]:
+        http_request_methods=["GET","POST"]
+        return regex_search("^("+'|'.join(http_request_methods)+"){1}\s{1}/[a-zA-Z0-9 -.]*\s{1}HTTP/1.1", data)
 
 
     #

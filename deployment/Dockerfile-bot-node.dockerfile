@@ -21,11 +21,12 @@ RUN mkdir -m 0700 /p2p/ && \
     mkdir -p /p2p/cstmcrypt/AES-keys
 
 COPY ./deployment/src/bot-node/ /p2p/
-COPY ./deployment/docker-entrypoint.sh /entrypoint.shls
+COPY ./deployment/docker-entrypoint.sh /p2p/entrypoint.sh
 COPY ./deployment/src/bot-node/assets/requirements.txt /p2p/requirements.txt
 
 RUN chmod 0700 /p2p/node.py && \
-    chmod 0700 /entrypoint.sh
+    chmod 0700 /p2p/entrypoint.sh && \
+    chown -R 10111:10111 /p2p/
 
 # opencv for vcap
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -33,5 +34,5 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 USER bot
 
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/p2p/entrypoint.sh" ]
 CMD [ "python3", "/p2p/node.py", "45666" ]

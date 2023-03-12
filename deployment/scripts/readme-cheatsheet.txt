@@ -109,7 +109,7 @@ kubectl exec \
 ******************************************************************************************
 
 *** Scale replicas:
-    kubectl scale deployment/p2p-bot-node --replicas=1
+    kubectl scale deployment/p2p-bot-node --replicas=50
 
 
 
