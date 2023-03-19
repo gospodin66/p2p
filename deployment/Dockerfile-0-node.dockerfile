@@ -22,4 +22,4 @@ RUN touch /p2p/ips.txt && \
     chmod 0700 /entrypoint.sh
 
 ENTRYPOINT [ "/entrypoint.sh" ]
-CMD [ "expect", "/p2p/assets/automate", "45666", "10.244.1-2.2-255" ]
+CMD [ "expect", "/p2p/assets/automate", "45666", "10.42.0.1-255" ]

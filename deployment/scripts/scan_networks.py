@@ -39,7 +39,7 @@ def scan_networks(ips_list: list, output_path: Path=Path('ips.txt')) -> list:
 if __name__ == '__main__':
 
     ips_list = [
-        '10.244.0.10-255',
+        '10.42.0.1-255',
         '192.168.1.0/24'
     ]
     output_path=Path('ips.txt')

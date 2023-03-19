@@ -89,11 +89,11 @@ openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
 *** Up hosts in network:
 kubectl exec \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) \
-    -- nmap -n 10.244.0-2.0-255/24 -p 44000-49999 -oG - | awk '/Up$/{print $2}' | sort -V
+    -- nmap -n 10.42.0.1-255/24 -p 44000-49999 -oG - | awk '/Up$/{print $2}' | sort -V
 
 kubectl exec \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) \
-    -- nmap -sn 10.244.0-2.0-255 -oG - | awk '/Up$/{print $2}' | sort -V
+    -- nmap -sn 10.42.0.1-255 -oG - | awk '/Up$/{print $2}' | sort -V
 
 kubectl exec \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep node-0) \
@@ -102,7 +102,7 @@ kubectl exec \
 *** Add nodes ips in network to file:
 kubectl exec \
     $(kubectl get pods -o=name --field-selector=status.phase=Running | grep p2p-0-node) \
-    -- sh -c "touch /p2p/ips.txt && nmap -n -sn 10.244.1-2.0-255 -oG - \
+    -- sh -c "touch /p2p/ips.txt && nmap -n -sn 10.42.0.1-255 -oG - \
             | awk '/Up\$/{print \$2}' \
             | sort -V \
             | tee /p2p/ips.txt"
@@ -125,7 +125,7 @@ kubectl exec -it \
 
 
 *** Scan network & save ips to list:
-nmap -vvv -n -sn 10.244.1-2.0-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
+nmap -vvv -n -sn 10.42.0.1-255 -oG - | awk '/Up$/{print $2}' | sort -V | tee /p2p/ips.txt
 
 
 

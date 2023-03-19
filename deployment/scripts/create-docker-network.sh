@@ -12,7 +12,7 @@ docker network create \
 docker network create \
   --attachable \
   --driver=overlay \
-  --subnet=10.244.0.0/24 \
-  --ip-range=10.244.0.0/24 \
-  --gateway=10.244.0.254 \
+  --subnet=10.42.0.0/24 \
+  --ip-range=10.42.0.0/24 \
+  --gateway=10.42.0.254 \
   p2p-net-gateway
