@@ -1,0 +1,26 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+networking:
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
+  kubeProxyMode: "iptables"
+
+nodes:
+- role: control-plane
+  extraPortMappings:
+    - containerPort: 45666
+      hostPort: 31516
+      protocol: TCP
+    - containerPort: 45667
+      hostPort: 31517
+      protocol: TCP
+    - containerPort: 45668
+      hostPort: 31518
+      protocol: TCP
+- role: worker
+  labels:
+    tier: backend
+- role: worker
+  labels:
+    tier: backend

@@ -14,9 +14,11 @@ then
     exit 1
 fi
 
+#if ! kind load docker-image ${node0[0]} \
+#|| ! kind load docker-image ${bot_node[0]};
 printf '%s\n' "--- loading docker images to k3s.."
-if ! docker save ${node0[0]} | sudo k3s ctr images import - || \
-   ! docker save ${bot_node[0]} | sudo k3s ctr images import -;
+if ! docker save ${node0[0]} | sudo k3s ctr images import - \
+|| ! docker save ${bot_node[0]} | sudo k3s ctr images import -;
 then
     printf '%s\n\n' "--- error loading docker images to k3s cluster."
     exit 1
