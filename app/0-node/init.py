@@ -21,7 +21,7 @@ def main():
             exit(1)
     # no args
     else:
-        default_port = 45666
+        default_port = 45665
         if _argc == 1:
             # assign default host ip & port
             ip, port = (str(socket.gethostbyname(socket.gethostname())), default_port)

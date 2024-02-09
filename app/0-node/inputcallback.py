@@ -3,6 +3,21 @@ from queue import Queue
 from node import Node
 from base64 import b64encode
 
+# -------------------------------------------------------------------
+# | CMD_PREFIX |             DESCRIPTION             |  ARGS        |
+# -------------------------------------------------------------------
+# | b          | (broadcast cmd)                     |  cmd         |
+# | f          | (file(send))                        |  file_path   |
+# | c          | (connect)                           |  ip:port     |
+# | dc         | (disconnect)                        |  ip          |
+# | cmd        | (cmd to node)                       |  ip:port|cmd |
+# | s          | (send to single node)               |  ip:port|msg |
+# | cs         | (connections)                       |              |
+# | opts       | (list options)                      |              |
+# | listconn   | (connect to ips from provided list) |              |
+# | exit       | (self-expl.)                        |              |
+# -------------------------------------------------------------------
+
 # global callback for input-thread (broadcast/exec messages/commands)
 # inp  => input string | bytes
 # args => additional args to fnc
@@ -27,25 +42,9 @@ def input_callback(inp, args) -> int:
         q.task_done()
         print(f"received in queue -- size {q.qsize()}")
 
-
     if not inp or inp == "":
         print("--- empty input..")
         return 0
-
-    # -------------------------------------------------------------------
-    # | CMD_PREFIX |             DESCRIPTION             |  ARGS        |
-    # -------------------------------------------------------------------
-    # | b          | (broadcast cmd)                     |  cmd         |
-    # | f          | (file(send))                        |  file_path   |
-    # | c          | (connect)                           |  ip:port     |
-    # | dc         | (disconnect)                        |  ip          |
-    # | cmd        | (cmd to node)                       |  ip:port|cmd |
-    # | s          | (send to single node)               |  ip:port|msg |
-    # | cs         | (connections)                       |              |
-    # | opts       | (list options)                      |              |
-    # | listconn   | (connect to ips from provided list) |              |
-    # | exit       | (self-expl.)                        |              |
-    # -------------------------------------------------------------------
 
     if inp[:2] == "b:":
         print(f">>> broadcasting command [{inp[2:]}]")
@@ -65,7 +64,7 @@ def input_callback(inp, args) -> int:
         if validate_ip_port(str(addr[0]), int(addr[1])) != 0:
             return 0
 
-        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), c=c)
+        n.connect_to_node(ip=str(addr[0]), port=int(addr[1]), q=q, c=c)
         q.queue.clear()
         # print(f"cleared queue -- size: {q.qsize()}")
         return 0

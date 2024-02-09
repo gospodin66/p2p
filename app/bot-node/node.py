@@ -18,6 +18,7 @@ import socket
 import select
 import subprocess
 import json
+import os
 
 from time import strftime, localtime, sleep
 from random import randint
@@ -695,8 +696,15 @@ def main():
         print(f"exited by cmd with [{ret}]")
     else:
         print(f"exited with error [{ret}]")
-    
+        
     exit(ret)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"exiting by SIGINT..")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

@@ -3,6 +3,9 @@ import os
 import time
 import numpy as np
 
+#
+# pip install opencv-python numpy
+#
 
 # morphologyEx(img, operator, kernel): returns resulting image depending upon the operator specified
 # - MORPH_OPEN: for open operation
